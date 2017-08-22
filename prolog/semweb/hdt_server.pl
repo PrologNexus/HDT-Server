@@ -25,10 +25,8 @@
 :- use_module(library(yall)).
 
 :- http_handler(/, hdt_handler, [methods([get,head,options]),prefix]).
-%:- http_handler(root(graphs), graphs_handler,
-%                [methods([get,head,options]),prefix]).
-%:- http_handler(root(nodes), nodes_handler,
-%                [methods([get,head,options]),prefix]).
+:- http_handler(root(graphs), graphs_handler,
+                [methods([get,head,options]),prefix]).
 :- http_handler(root(objects), objects_handler,
                 [methods([get,head,options]),prefix]).
 :- http_handler(root(predicates), predicates_handler,
@@ -40,16 +38,14 @@
 :- http_handler(root(triples), triples_handler,
                 [methods([get,head,options]),prefix]).
 
-%html:menu_item(hdt, graphs_handler, "graphs").
-%html:menu_item(hdt, nodes_handler, "nodes").
-html:menu_item(hdt, objects_handler, "objects").
-html:menu_item(hdt, predicates_handler, "predicates").
-html:menu_item(hdt, shared_handler, "shared").
-html:menu_item(hdt, subjects_handler, "subjects").
-html:menu_item(hdt, triples_handler, "triples").
+html:menu_item(hdt, graphs_handler, "graphs").
+html:menu_item(hdt, objects_handler, "objects").       % est, id,     suggest
+html:menu_item(hdt, predicates_handler, "predicates"). % est, id,     suggest
+html:menu_item(hdt, shared_handler, "shared").         % est, id,     suggest
+html:menu_item(hdt, subjects_handler, "subjects").     % est, id,     suggest
+html:menu_item(hdt, triples_handler, "triples").       % est, id, rnd
 
-%html:handle_description(graphs_handler, "graphs").
-%html:handle_description(nodes_handler, "nodes").
+html:handle_description(graphs_handler, "graphs").
 html:handle_description(objects_handler, "objects").
 html:handle_description(predicates_handler, "predicates").
 html:handle_description(shared_handler, "shared").
