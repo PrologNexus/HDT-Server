@@ -1,0 +1,23 @@
+[Unit]
+Description=HDT-Server
+
+[Service]
+UMask=022
+Environment=LANG=en_US.utf8
+Restart=on-abort
+ExecReload=/bin/kill -s HUP $MAINPID
+StartLimitInterval=60
+LimitNOFILE=1000
+WorkingDirectory=/home/wbeek/git/HDT-Server
+ExecStart=/home/wbeek/bin/swipl \
+   run.pl \
+   --http \
+   --redirect \
+   --https \
+   --no-fork \
+   --user=wbeek \
+   --workers=16 \
+   --conf=conf.json
+
+[Install]
+WantedBy=multi-user.target

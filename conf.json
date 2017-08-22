@@ -1,0 +1,12 @@
+{
+  "graphs": [
+    {
+      "file": "/home/wbeek/data/default.hdt",
+      "name": "default"
+    },
+    {
+      "file": "/home/wbeek/data/iisg.hdt",
+      "name": "iisg"
+    }
+  ]
+}
