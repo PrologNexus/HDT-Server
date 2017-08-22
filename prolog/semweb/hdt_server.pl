@@ -8,6 +8,7 @@
 
 :- use_module(library(aggregate)).
 :- use_module(library(apply)).
+:- use_module(library(atom_ext)).
 :- use_module(library(conf_ext)).
 :- use_module(library(dict_ext)).
 :- use_module(library(error)).
@@ -28,31 +29,31 @@
 %                [methods([get,head,options]),prefix]).
 %:- http_handler(root(nodes), nodes_handler,
 %                [methods([get,head,options]),prefix]).
-%:- http_handler(root(objects), objects_handler,
-%                [methods([get,head,options]),prefix]).
+:- http_handler(root(objects), objects_handler,
+                [methods([get,head,options]),prefix]).
 :- http_handler(root(predicates), predicates_handler,
                 [methods([get,head,options]),prefix]).
-%:- http_handler(root(shared), shared_handler,
-%                [methods([get,head,options]),prefix]).
-%:- http_handler(root(subjects), subjects_handler,
-%                [methods([get,head,options]),prefix]).
+:- http_handler(root(shared), shared_handler,
+                [methods([get,head,options]),prefix]).
+:- http_handler(root(subjects), subjects_handler,
+                [methods([get,head,options]),prefix]).
 :- http_handler(root(triples), triples_handler,
                 [methods([get,head,options]),prefix]).
 
 %html:menu_item(hdt, graphs_handler, "graphs").
 %html:menu_item(hdt, nodes_handler, "nodes").
-%html:menu_item(hdt, objects_handler, "objects").
+html:menu_item(hdt, objects_handler, "objects").
 html:menu_item(hdt, predicates_handler, "predicates").
-%html:menu_item(hdt, shared_handler, "shared").
-%html:menu_item(hdt, subjects_handler, "subjects").
+html:menu_item(hdt, shared_handler, "shared").
+html:menu_item(hdt, subjects_handler, "subjects").
 html:menu_item(hdt, triples_handler, "triples").
 
 %html:handle_description(graphs_handler, "graphs").
 %html:handle_description(nodes_handler, "nodes").
-%html:handle_description(objects_handler, "objects").
+html:handle_description(objects_handler, "objects").
 html:handle_description(predicates_handler, "predicates").
-%html:handle_description(shared_handler, "shared").
-%html:handle_description(subjects_handler, "subjects").
+html:handle_description(shared_handler, "shared").
+html:handle_description(subjects_handler, "subjects").
 html:handle_description(triples_handler, "triples").
 
 :- initialization
@@ -66,6 +67,10 @@ html:handle_description(triples_handler, "triples").
        hdt_init(File, G)
      )
    ).
+
+:- meta_predicate
+   terms_handler(+, 2, +),
+   terms_method(+, 2, +, +, +).
 
 :- multifile
     user:body//2,
@@ -187,12 +192,31 @@ graph_row(G) -->
 
 
 
+% /objects
+objects_handler(Request) :-
+  terms_handler(Request, hdt_object, objects).
+
+
 % /predicates
 predicates_handler(Request) :-
-  rest_method(Request, predicates_method(Request)).
+  terms_handler(Request, hdt_predicate, predicates).
+
+
+% /shared
+shared_handler(Request) :-
+  terms_handler(Request, hdt_shared, shared).
+
+
+% /subjects
+subjects_handler(Request) :-
+  terms_handler(Request, hdt_subject, subjects).
+
+
+terms_handler(Request, Goal_2, Key) :-
+  rest_method(Request, terms_method(Request, Goal_2, Key)).
 
 % GET, HEAD
-predicates_method(Request, Method, MediaTypes) :-
+terms_method(Request, Goal_2, Key, Method, MediaTypes) :-
   http_is_get(Method),
   rdf_equal(graph:default, DefaultG),
   setting(default_page_size, DefaultPageSize),
@@ -203,7 +227,7 @@ predicates_method(Request, Method, MediaTypes) :-
       graph(G, [
         atom,
         default(DefaultG),
-        description("The named graph from which blank nodes are enumerated.  When absent, blank nodes are enumerated from the default graph.")
+        description("The named graph from which terms are enumerated.  When absent, terms are enumerated from the default graph.")
       ]),
       page(PageNumber, [
         default(1),
@@ -227,29 +251,30 @@ predicates_method(Request, Method, MediaTypes) :-
   ),
   pagination(
     P,
-    hdt_predicate(Hdt, P),
-    {G}/[N]>>rdf_statistic(hdt, predicates, N, G),
+    call(Goal_2, Hdt, P),
+    {Key,G}/[N]>>rdf_statistic(hdt, Key, N, G),
     Options2,
     Page
   ),
-  rest_media_type(MediaTypes, predicates_media_type(G, Page)).
+  rest_media_type(MediaTypes, terms_media_type(Key, G, Page)).
 
 % GET, HEAD: application/json
-predicates_media_type(_, Page, media(application/json,_)) :-
+terms_media_type(_, _, Page, media(application/json,_)) :-
   http_pagination_json(Page).
 % GET, HEAD: text/html
-predicates_media_type(G, Page, media(text/html,_)) :-
+terms_media_type(Key, G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
+  atom_capitalize(Key, CKey),
   html_page(
-    hdt(Page,["Predicates"]),
+    hdt(Page,[CKey]),
     [],
-    [\html_pagination_result(Page, predicate_table(G))]
+    [\html_pagination_result(Page, terms_table(G))]
   ).
 
-predicate_table(G, Ps) -->
-  html(ul(\html_maplist(predicate_row(G), Ps))).
+terms_table(G, Ps) -->
+  html(ul(\html_maplist(terms_row(G), Ps))).
 
-predicate_row(G, P) -->
+terms_row(G, P) -->
   {
     (var(G) -> Query = [] ; Query = [graph(G)]),
     http_link_to_id(triples_handler, [subject(P)|Query], Uri1),
@@ -267,6 +292,9 @@ predicate_row(G, P) -->
       a(href=Uri3, "(o)")
     ])
   ).
+
+
+
 % /triples
 triples_handler(Request) :-
   rest_method(Request, triples_method(Request)).
@@ -415,5 +443,15 @@ brand -->
   html("HDT-Server").
 
 krr -->
-  {http_absolute_location(img('krr.svg'), Image)},
-  html(a(href='http://krr.cs.vu.nl', img(src=Image, []))).
+  {
+    aggregate_all(set(G), hdt_graph(_, G), Gs),
+    http_absolute_location(img('krr.svg'), Image)
+  },
+  html([
+    \navbar_dropdown_menu('graph-menu', "Graph", graph_item, Gs),
+    a(href='http://krr.cs.vu.nl', img(src=Image, []))
+  ]).
+
+graph_item(G) -->
+  {rdf_global_id(graph:Name, G)},
+  html(option([value(G)], Name)).
