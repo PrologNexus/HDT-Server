@@ -39,11 +39,11 @@
                 [methods([get,head,options]),prefix]).
 
 html:menu_item(hdt, graphs_handler, "graphs").
-html:menu_item(hdt, objects_handler, "objects").       % est,     suggest
-html:menu_item(hdt, predicates_handler, "predicates"). % est,     suggest
-html:menu_item(hdt, shared_handler, "shared").         % est,     suggest
-html:menu_item(hdt, subjects_handler, "subjects").     % est,     suggest
-html:menu_item(hdt, triples_handler, "triples").       % est, rnd
+html:menu_item(hdt, objects_handler, "objects").       % suggest
+html:menu_item(hdt, predicates_handler, "predicates"). % suggest
+html:menu_item(hdt, shared_handler, "shared").         % suggest
+html:menu_item(hdt, subjects_handler, "subjects").     % suggest
+html:menu_item(hdt, triples_handler, "triples").       % rnd
 
 html:handle_description(graphs_handler, "graphs").
 html:handle_description(objects_handler, "objects").
@@ -244,6 +244,11 @@ terms_method(Request, Goal_3, Key, Method, MediaTypes) :-
   http_parameters(
     Request,
     [
+      est(Est, [
+        boolean,
+        default(false),
+        description("Return the estimated number terms i.o. the actual results.  Default is `false'.")
+      ]),
       graph(G, [
         atom,
         default(DefaultG),
@@ -274,14 +279,26 @@ terms_method(Request, Goal_3, Key, Method, MediaTypes) :-
   ->  Options2 = Options1
   ;   put_dict(query, Options1, [graph(G)], Options2)
   ),
-  pagination(
-    P,
-    call(Goal_3, Id, Hdt, P),
-    {Key,G}/[N]>>rdf_statistic(hdt, Key, N, G),
-    Options2,
-    Page
-  ),
-  rest_media_type(MediaTypes, terms_media_type(Key, G, Page)).
+  (   Est == true
+  ->  rdf_statistic(hdt, Key, Cost, G),
+      rest_media_type(MediaTypes, terms_est_media_type(Key, Cost))
+  ;   pagination(
+        P,
+        call(Goal_3, Id, Hdt, P),
+        {Key,G}/[N]>>rdf_statistic(hdt, Key, N, G),
+        Options2,
+        Page
+      ),
+      rest_media_type(MediaTypes, terms_media_type(Key, G, Page))
+  ).
+
+% GET, HEAD: application/json
+terms_est_media_type(_, Cost, media(application/json,_)) :-
+  http_reply_json(Cost).
+% GET, HEAD: text/html
+terms_est_media_type(Key, Cost, media(text/html,_)) :-
+  atom_capitalize(Key, CKey),
+  html_page(hdt(_,["Terms",CKey]), [], [\html_thousands(Cost)]).
 
 % GET, HEAD: application/json
 terms_media_type(_, _, Page, media(application/json,_)) :-
@@ -430,9 +447,7 @@ hdt_cost_(true, Hdt, S, P, O, Cost) :-
 
 % GET, HEAD: application/json
 triples_est_media_type(Cost, media(application/json,_)) :-
-  format("Content-Type: application/json\n"),
-  nl,
-  json_write_dict(current_output, Cost).
+  http_reply_json(Cost).
 % GET, HEAD: text/html
 triples_est_media_type(Cost, media(text/html,_)) :-
   html_page(hdt(_,["Triples","Estimate"]), [], [\html_thousands(Cost)]).
