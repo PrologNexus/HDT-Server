@@ -24,7 +24,12 @@
 :- use_module(library(uri/uri_ext)).
 :- use_module(library(yall)).
 
-:- http_handler(/, hdt_handler, [methods([get,head,options]),prefix]).
+:- dynamic
+    html:handle_description/2,
+    html:menu_item/3.
+
+:- http_handler(/, hdt_handler,
+                [methods([get,head,options]),prefix,priority(-1)]).
 :- http_handler(root(graphs), graphs_handler,
                 [methods([get,head,options]),prefix]).
 :- http_handler(root(objects), objects_handler,
@@ -37,20 +42,6 @@
                 [methods([get,head,options]),prefix]).
 :- http_handler(root(triples), triples_handler,
                 [methods([get,head,options]),prefix]).
-
-html:menu_item(hdt, graphs_handler, "graphs").
-html:menu_item(hdt, objects_handler, "objects").
-html:menu_item(hdt, predicates_handler, "predicates").
-html:menu_item(hdt, shared_handler, "shared").
-html:menu_item(hdt, subjects_handler, "subjects").
-html:menu_item(hdt, triples_handler, "triples").
-
-html:handle_description(graphs_handler, "graphs").
-html:handle_description(objects_handler, "objects").
-html:handle_description(predicates_handler, "predicates").
-html:handle_description(shared_handler, "shared").
-html:handle_description(subjects_handler, "subjects").
-html:handle_description(triples_handler, "triples").
 
 :- initialization
    conf_json(Dict1),
@@ -69,23 +60,26 @@ html:handle_description(triples_handler, "triples").
    terms_method(+, 2, +, +, +).
 
 :- multifile
+    html:handle_description/2,
+    html:menu_item/3,
     user:body//2,
     user:head//2.
 
-:- set_setting(http:products, ['HDT-Server'-'v0.0.1']).
+html:handle_description(graphs_handler, "graphs").
+html:handle_description(objects_handler, "objects").
+html:handle_description(predicates_handler, "predicates").
+html:handle_description(shared_handler, "shared").
+html:handle_description(subjects_handler, "subjects").
+html:handle_description(triples_handler, "triples").
 
-:- setting(
-     default_page_size,
-     positive_integer,
-     10,
-     "The default number of triples that is retreived in one request."
-   ).
-:- setting(
-     maximum_page_size,
-     positive_integer,
-     100,
-     "The maximum number of triples that can be retrieved in one request."
-   ).
+html:menu_item(hdt, graphs_handler, "graphs").
+html:menu_item(hdt, objects_handler, "objects").
+html:menu_item(hdt, predicates_handler, "predicates").
+html:menu_item(hdt, shared_handler, "shared").
+html:menu_item(hdt, subjects_handler, "subjects").
+html:menu_item(hdt, triples_handler, "triples").
+
+:- set_setting(http:products, ['HDT-Server'-'v0.0.1']).
 
 
 
@@ -100,7 +94,8 @@ hdt_method(Method, MediaTypes) :-
 
 % GET, HEAD: text/html
 hdt_media_type(media(text/html,_)) :-
-  html_page(hdt(_,[]), [], [\menu_deck(hdt)]).
+  html_page(
+    hdt(_,[]), [], [\menu_deck(hdt)]).
 
 menu_deck(Parent) -->
   {
@@ -138,8 +133,8 @@ graphs_handler(Request) :-
 % GET, HEAD
 graphs_method(Request, Method, MediaTypes) :-
   http_is_get(Method),
-  setting(default_page_size, DefaultPageSize),
-  setting(maximum_page_size, MaxPageSize),
+  setting(pagination:default_page_size, DefaultPageSize),
+  setting(pagination:maximum_page_size, MaxPageSize),
   http_parameters(
     Request,
     [
@@ -239,8 +234,8 @@ terms_handler(Request, Goal_3, Key) :-
 terms_method(Request, Goal_3, Key, Method, MediaTypes) :-
   http_is_get(Method),
   rdf_equal(graph:default, DefaultG),
-  setting(default_page_size, DefaultPageSize),
-  setting(maximum_page_size, MaxPageSize),
+  setting(pagination:default_page_size, DefaultPageSize),
+  setting(pagination:maximum_page_size, MaxPageSize),
   http_parameters(
     Request,
     [
@@ -368,8 +363,8 @@ triples_handler(Request) :-
 triples_method(Request, Method, MediaTypes) :-
   http_is_get(Method),
   rdf_equal(graph:default, DefaultG),
-  setting(default_page_size, DefaultPageSize),
-  setting(maximum_page_size, MaxPageSize),
+  setting(pagination:default_page_size, DefaultPageSize),
+  setting(pagination:maximum_page_size, MaxPageSize),
   http_parameters(
     Request,
     [
