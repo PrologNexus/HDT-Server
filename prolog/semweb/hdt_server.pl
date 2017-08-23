@@ -39,11 +39,11 @@
                 [methods([get,head,options]),prefix]).
 
 html:menu_item(hdt, graphs_handler, "graphs").
-html:menu_item(hdt, objects_handler, "objects").       % suggest
-html:menu_item(hdt, predicates_handler, "predicates"). % suggest
-html:menu_item(hdt, shared_handler, "shared").         % suggest
-html:menu_item(hdt, subjects_handler, "subjects").     % suggest
-html:menu_item(hdt, triples_handler, "triples").       % rnd
+html:menu_item(hdt, objects_handler, "objects").
+html:menu_item(hdt, predicates_handler, "predicates").
+html:menu_item(hdt, shared_handler, "shared").
+html:menu_item(hdt, subjects_handler, "subjects").
+html:menu_item(hdt, triples_handler, "triples").
 
 html:handle_description(graphs_handler, "graphs").
 html:handle_description(objects_handler, "objects").
@@ -268,6 +268,16 @@ terms_method(Request, Goal_3, Key, Method, MediaTypes) :-
         between(1, MaxPageSize),
         default(DefaultPageSize),
         description("The number of terms per full results set page.")
+      ]),
+      prefix(Prefix, [
+        atom,
+        description("Filter for terms that have this prefix."),
+        optional(true)
+      ]),
+      rnd(_Rnd, [ %TBD
+        boolean,
+        default(false),
+        description("Retrieve a randomly chosen triple.  Default is `false'.")
       ])
     ]
   ),
@@ -279,18 +289,31 @@ terms_method(Request, Goal_3, Key, Method, MediaTypes) :-
   ->  Options2 = Options1
   ;   put_dict(query, Options1, [graph(G)], Options2)
   ),
-  (   Est == true
+  (   ground(Prefix)
+  ->  key_role_(Key, Role),
+      pagination_bulk(
+        hdt_suggestions(Hdt, Prefix, Role, PageSize),
+        Options2,
+        Page
+      ),
+      rest_media_type(MediaTypes, terms_media_type(Key, G, Page))
+  ;   Est == true
   ->  rdf_statistic(hdt, Key, Cost, G),
       rest_media_type(MediaTypes, terms_est_media_type(Key, Cost))
   ;   pagination(
-        P,
-        call(Goal_3, Id, Hdt, P),
+        Term,
+        call(Goal_3, Id, Hdt, Term),
         {Key,G}/[N]>>rdf_statistic(hdt, Key, N, G),
         Options2,
         Page
       ),
       rest_media_type(MediaTypes, terms_media_type(Key, G, Page))
   ).
+
+key_role_(objects, object).
+key_role_(predicates, predicate).
+key_role_(shared, subject). %HACK
+key_role_(subjects, subject).
 
 % GET, HEAD: application/json
 terms_est_media_type(_, Cost, media(application/json,_)) :-
