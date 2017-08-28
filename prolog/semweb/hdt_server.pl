@@ -12,6 +12,7 @@
 :- use_module(library(conf_ext)).
 :- use_module(library(dict_ext)).
 :- use_module(library(error)).
+:- use_module(library(html/html_doc)).
 :- use_module(library(html/html_ext)).
 :- use_module(library(html/html_pagination)).
 :- use_module(library(html/rdf_html)).
@@ -30,6 +31,8 @@
 
 :- http_handler(/, hdt_handler,
                 [methods([get,head,options]),prefix,priority(-1)]).
+:- http_handler(root(doc), doc_handler,
+                [methods([get,head,options]),prefix]).
 :- http_handler(root(graphs), graphs_handler,
                 [methods([get,head,options]),prefix]).
 :- http_handler(root(objects), objects_handler,
@@ -65,6 +68,7 @@
     user:body//2,
     user:head//2.
 
+html:handle_description(doc_handler, "doc").
 html:handle_description(graphs_handler, "graphs").
 html:handle_description(objects_handler, "objects").
 html:handle_description(predicates_handler, "predicates").
@@ -72,6 +76,7 @@ html:handle_description(shared_handler, "shared").
 html:handle_description(subjects_handler, "subjects").
 html:handle_description(triples_handler, "triples").
 
+html:menu_item(hdt, doc_handler, "doc").
 html:menu_item(hdt, graphs_handler, "graphs").
 html:menu_item(hdt, objects_handler, "objects").
 html:menu_item(hdt, predicates_handler, "predicates").
@@ -94,8 +99,7 @@ hdt_method(Method, MediaTypes) :-
 
 % GET, HEAD: text/html
 hdt_media_type(media(text/html,_)) :-
-  html_page(
-    hdt(_,[]), [], [\menu_deck(hdt)]).
+  html_page(hdt(_,[]), [], [\menu_deck(hdt)]).
 
 menu_deck(Parent) -->
   {
@@ -126,6 +130,21 @@ menu_card(card(Handle,Label,Content)) -->
 
 
 
+% /doc
+doc_handler(Request) :-
+  rest_method(Request, doc_method).
+
+% GET, HEAD
+doc_method(Method, MediaTypes) :-
+  http_is_get(Method),
+  rest_media_type(MediaTypes, doc_media_type).
+
+% GET, HEAD: text/html
+doc_media_type(media(text/html,_)) :-
+  html_page(hdt(_,[]), [], [\http_param_table(hdt_server)]).
+
+
+
 % /graphs
 graphs_handler(Request) :-
   rest_method(Request, graphs_method(Request)).
@@ -133,22 +152,10 @@ graphs_handler(Request) :-
 % GET, HEAD
 graphs_method(Request, Method, MediaTypes) :-
   http_is_get(Method),
-  setting(pagination:default_page_size, DefaultPageSize),
-  setting(pagination:maximum_page_size, MaxPageSize),
   http_parameters(
     Request,
-    [
-      page(PageNumber, [
-        default(1),
-        description("The page number from the results set."),
-        positive_integer
-      ]),
-      page_size(PageSize, [
-        between(1, MaxPageSize),
-        default(DefaultPageSize),
-        description("The number of terms per full results set page.")
-      ])
-    ]
+    [page(PageNumber),page_size(PageSize)],
+    [attribute_declarations(http_param)]
   ),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
@@ -233,52 +240,22 @@ terms_handler(Request, Goal_3, Key) :-
 % GET, HEAD
 terms_method(Request, Goal_3, Key, Method, MediaTypes) :-
   http_is_get(Method),
-  rdf_equal(graph:default, DefaultG),
-  setting(pagination:default_page_size, DefaultPageSize),
-  setting(pagination:maximum_page_size, MaxPageSize),
   http_parameters(
     Request,
     [
-      est(Est, [
-        boolean,
-        default(false),
-        description("Return the estimated number terms i.o. the actual results.  Default is `false'.")
-      ]),
-      graph(G, [
-        atom,
-        default(DefaultG),
-        description("The named graph from which terms are enumerated.  When absent, terms are enumerated from the default graph.")
-      ]),
-      id(Id, [
-        boolean,
-        default(false),
-        description("Return HDT identifiers i.o. RDF terms.")
-      ]),
-      page(PageNumber, [
-        default(1),
-        description("The page number from the results set."),
-        positive_integer
-      ]),
-      page_size(PageSize, [
-        between(1, MaxPageSize),
-        default(DefaultPageSize),
-        description("The number of terms per full results set page.")
-      ]),
-      prefix(Prefix, [
-        atom,
-        description("Filter for terms that have this prefix."),
-        optional(true)
-      ]),
-      rnd(_Rnd, [ %TBD
-        boolean,
-        default(false),
-        description("Retrieve a randomly chosen triple.  Default is `false'.")
-      ])
-    ]
+      est(Est),
+      graph(G),
+      id(Id),
+      page(PageNumber),
+      page_size(PageSize),
+      prefix(Prefix),
+      rnd(_Rnd)
+    ],
+    [attribute_declarations(http_param)]
   ),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  hdt_graph(Hdt, G),
+  (hdt_graph(Hdt, G) -> true ; existence_error(hdt_graph, G)),
   Options1 = _{page_number: PageNumber, page_size: PageSize, uri: Uri},
   (   var(G)
   ->  Options2 = Options1
@@ -362,53 +339,19 @@ triples_handler(Request) :-
 % GET, HEAD
 triples_method(Request, Method, MediaTypes) :-
   http_is_get(Method),
-  rdf_equal(graph:default, DefaultG),
-  setting(pagination:default_page_size, DefaultPageSize),
-  setting(pagination:maximum_page_size, MaxPageSize),
   http_parameters(
     Request,
     [
-      est(Est, [
-        boolean,
-        default(false),
-        description("Return the estimated number of results i.o. the actual results.  Default is `false'.")
-      ]),
-      graph(G, [
-        atom,
-        default(DefaultG),
-        description("The named graph from which results are retrieved.  If absent, the default graph is used.")
-      ]),
-      id(Id, [
-        boolean,
-        default(false),
-        description("Return HDT identifiers i.o. RDF terms.  Default is `false'.")
-      ]),
-      object(O1, [
-        atom,
-        description("Filter results with this object term."),
-        optional(true)
-      ]),
-      page(PageNumber, [
-        default(1),
-        description("The page number of the results set."),
-        positive_integer
-      ]),
-      page_size(PageSize, [
-        between(1, MaxPageSize),
-        default(DefaultPageSize),
-        description("The number of data triples on each (full) page.")
-      ]),
-      predicate(P1, [
-        atom,
-        description("Filter results with this predicate term."),
-        optional(true)
-      ]),
-      subject(S1, [
-        atom,
-        description("Filter results with this subject term."),
-        optional(true)
-      ])
-    ]
+      est(Est),
+      graph(G),
+      id(Id),
+      object(O1),
+      page(PageNumber),
+      page_size(PageSize),
+      predicate(P1),
+      subject(S1)
+    ],
+    [attribute_declarations(http_param)]
   ),
   (   Id == true
   ->  maplist(id_arg_, [S1,P1,O1], [S2,P2,O2])
@@ -519,32 +462,66 @@ triples_media_type(G, Page, media(text/html,_)) :-
   html_page(
     hdt(Page,["Triples",GLocal]),
     [],
-    [\html_pagination_result(Page, hdt_triple_table(Page.uri, G))]
+    [\html_pagination_result(Page, rdf_html_triple_table(Page.uri, G))]
   ).
 
-hdt_triple_table(Uri, G, Triples) -->
-  table(
-    \table_header_row(["Subject","Predicate","Object"]),
-    \html_maplist(hdt_triple_table_row(Uri, G), Triples)
-  ).
 
-hdt_triple_table_row(Uri, G, rdf(S,P,O)) -->
-  {
-    maplist(rdf_term_to_atom, [S,P,O], [AtomS,AtomP,AtomO]),
-    (var(G) -> Query = [] ; Query = [graph(G)]),
-    maplist(
-      uri_comp_set(query, Uri),
-      [[subject(AtomS)|Query],[predicate(AtomP)|Query],[object(AtomO)|Query]],
-      [UriS,UriP,UriO]
-    )
-  },
-  html(
-    tr([
-      td(a(href=UriS, \rdf_html_subject(S))),
-      td(a(href=UriP, \rdf_html_predicate(P))),
-      td(a(href=UriO, \rdf_html_object(O)))
-    ])
-  ).
+
+% HTTP PARAMETERS %
+
+http_param(est, [
+  boolean,
+  default(false),
+  description("Return the estimated number results i.o. the actual results.")
+]).
+http_param(graph, [
+  atom,
+  default(G),
+  description("The named graph from which results are retrieved.  When absent, results are retrieved from the default graph.")
+]) :-
+  rdf_equal(graph:default, G).
+http_param(id, [
+  boolean,
+  default(false),
+  description("Return HDT identifiers i.o. RDF terms.")
+]).
+http_param(object, [
+  atom,
+  description("Filter results with this object term."),
+  optional(true)
+]).
+http_param(page, [
+  default(1),
+  description("The page number from the results set."),
+  positive_integer
+]).
+http_param(page_size, [
+  between(1, MaxPageSize),
+  default(DefaultPageSize),
+  description("The number of results per full result set page.")
+]) :-
+  setting(pagination:default_page_size, DefaultPageSize),
+  setting(pagination:maximum_page_size, MaxPageSize).
+http_param(predicate, [
+  atom,
+  description("Filter results with this predicate term."),
+  optional(true)
+]).
+http_param(prefix, [
+  atom,
+  description("Filter for terms that have this prefix."),
+  optional(true)
+]).
+http_param(rnd, [
+  boolean,
+  default(false),
+  description("Retrieve a randomly chosen triple.  Default is `false'.")
+]).
+http_param(subject, [
+  atom,
+  description("Filter results with this subject term."),
+  optional(true)
+]).
 
 
 
@@ -583,5 +560,5 @@ krr -->
   ]).
 
 graph_item(G) -->
-  {rdf_global_id(graph:Name, G)},
-  html(option([value(G)], Name)).
+  {rdf_global_id(graph:Local, G)},
+  html(option([value(G)], Local)).
