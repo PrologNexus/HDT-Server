@@ -795,6 +795,29 @@ user:head(hdt(Page,Subtitles), Content_0) -->
 
 user:body(hdt(_,_), Content_0) -->
   html(body([\navbar(\brand, \menu, \krr)|Content_0])).
+/* ToC https://github.com/afeld/bootstrap-toc
+  html(
+    body(
+      ['data-spy'("scroll"),'data-target'('#toc')],
+      [
+        link(
+          [
+            href='https://cdn.rawgit.com/afeld/bootstrap-toc/v0.4.1/dist/bootstrap-toc.min.css',
+            rel=stylesheet
+          ],
+          []
+        ),
+        script(
+          src='https://cdn.rawgit.com/afeld/bootstrap-toc/v0.4.1/dist/bootstrap-toc.min.js',
+          []
+        ),
+        \navbar(\brand, \menu, \krr),
+        nav(['data-toggle'(toc),id(toc)], [])
+      | Content_0
+      ]
+    )
+  ).
+*/
 
 brand -->
   html("HDT-Server").
