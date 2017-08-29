@@ -84,19 +84,20 @@ html:handler_description(subjects_handler, "Subjects").
 html:handler_description(triples_handler, "Triples").
 
 html:menu_item(doc_handler, "Documentation").
-html:menu_item(hdt_terms, "Terms").
-  html:menu_item(hdt_terms, graphs_handler, "Graphs").
-  html:menu_item(hdt_terms, objects_handler, "Objects").
-  html:menu_item(hdt_terms, predicates_handler, "Predicates").
-  html:menu_item(hdt_terms, shared_handler, "Shared").
-  html:menu_item(hdt_terms, subjects_handler, "Subjects").
-html:menu_item(hdt_terms_id, "Term IDs").
-  html:menu_item(hdt_terms_id, objects_id_handler, "Object IDs").
-  html:menu_item(hdt_terms_id, predicates_id_handler, "Predicate IDs").
-  html:menu_item(hdt_terms_id, shared_id_handler, "Shared IDs").
-  html:menu_item(hdt_terms_id, subjects_id_handler, "Subject IDs").
-html:menu_item(triples_handler, "Triples").
-html:menu_item(triples_id_handler, "Triples IDs").
+html:menu_item(terms, "Terms").
+  html:menu_item(terms, graphs_handler, "Graphs").
+  html:menu_item(terms, objects_handler, "Objects").
+  html:menu_item(terms, predicates_handler, "Predicates").
+  html:menu_item(terms, shared_handler, "Shared").
+  html:menu_item(terms, subjects_handler, "Subjects").
+html:menu_item(terms_id, "Term IDs").
+  html:menu_item(terms_id, objects_id_handler, "Object IDs").
+  html:menu_item(terms_id, predicates_id_handler, "Predicate IDs").
+  html:menu_item(terms_id, shared_id_handler, "Shared IDs").
+  html:menu_item(terms_id, subjects_id_handler, "Subject IDs").
+html:menu_item(triples, "Triples").
+  html:menu_item(triples, triples_handler, "Triples").
+  html:menu_item(triples, triples_id_handler, "Triples IDs").
 
 :- set_setting(http:products, ['HDT-Server'-'v0.0.1']).
 
