@@ -27,24 +27,17 @@
 
 :- dynamic
     html:handle_description/2,
+    html:menu_item/2,
     html:menu_item/3.
 
-:- http_handler(/, hdt_handler,
-                [methods([get,head,options]),prefix,priority(-1)]).
-:- http_handler(root(doc), doc_handler,
-                [methods([get,head,options]),prefix]).
-:- http_handler(root(graphs), graphs_handler,
-                [methods([get,head,options]),prefix]).
-:- http_handler(root(objects), objects_handler,
-                [methods([get,head,options]),prefix]).
-:- http_handler(root(predicates), predicates_handler,
-                [methods([get,head,options]),prefix]).
-:- http_handler(root(shared), shared_handler,
-                [methods([get,head,options]),prefix]).
-:- http_handler(root(subjects), subjects_handler,
-                [methods([get,head,options]),prefix]).
-:- http_handler(root(triples), triples_handler,
-                [methods([get,head,options]),prefix]).
+:- http_handler(/, hdt_handler, [methods([get,head,options]),priority(-1)]).
+:- http_handler(root(doc), doc_handler, [methods([get,head,options])]).
+:- http_handler(root(graphs), graphs_handler, [methods([get,head,options])]).
+:- http_handler(root(objects), objects_handler, [methods([get,head,options])]).
+:- http_handler(root(predicates), predicates_handler, [methods([get,head,options])]).
+:- http_handler(root(shared), shared_handler, [methods([get,head,options])]).
+:- http_handler(root(subjects), subjects_handler, [methods([get,head,options])]).
+:- http_handler(root(triples), triples_handler, [methods([get,head,options])]).
 
 :- initialization
    conf_json(Dict1),
@@ -64,11 +57,12 @@
 
 :- multifile
     html:handle_description/2,
+    html:menu_item/2,
     html:menu_item/3,
     user:body//2,
     user:head//2.
 
-html:handle_description(doc_handler, "doc").
+html:handle_description(doc_handler, "Documentation").
 html:handle_description(graphs_handler, "graphs").
 html:handle_description(objects_handler, "objects").
 html:handle_description(predicates_handler, "predicates").
@@ -76,13 +70,14 @@ html:handle_description(shared_handler, "shared").
 html:handle_description(subjects_handler, "subjects").
 html:handle_description(triples_handler, "triples").
 
-html:menu_item(hdt, doc_handler, "doc").
-html:menu_item(hdt, graphs_handler, "graphs").
-html:menu_item(hdt, objects_handler, "objects").
-html:menu_item(hdt, predicates_handler, "predicates").
-html:menu_item(hdt, shared_handler, "shared").
-html:menu_item(hdt, subjects_handler, "subjects").
-html:menu_item(hdt, triples_handler, "triples").
+html:menu_item(doc_handler, "Documentation").
+html:menu_item(hdt_terms, "Terms").
+  html:menu_item(hdt_terms, graphs_handler, "Graphs").
+  html:menu_item(hdt_terms, objects_handler, "Objects").
+  html:menu_item(hdt_terms, predicates_handler, "Predicates").
+  html:menu_item(hdt_terms, shared_handler, "Shared").
+  html:menu_item(hdt_terms, subjects_handler, "Subjects").
+html:menu_item(triples_handler, "Triples").
 
 :- set_setting(http:products, ['HDT-Server'-'v0.0.1']).
 
@@ -99,26 +94,29 @@ hdt_method(Method, MediaTypes) :-
 
 % GET, HEAD: text/html
 hdt_media_type(media(text/html,_)) :-
-  html_page(hdt(_,[]), [], [\menu_deck(hdt)]).
+  html_page(hdt(_,[]), [], [\hdt_page]).
 
-menu_deck(Parent) -->
+hdt_page -->
+  html([h1("HDT APIs:"),\menu_deck]).
+
+menu_deck -->
   {
     findall(
-      card(Handle,Label,Content),
+      card(Handle,Label,Label),
       (
-        html:menu_item(Parent, Handle, Label),
-        html:handle_description(Handle, Content)
+        (   html:menu_item(Handler, Label)
+        ;   html:menu_item(Handler0, _),
+            html:menu_item(Handler0, Handler, Label)
+        ),
+        Handle \== doc_handler
       ),
       Cards
     )
   },
-  html([
-    h1("HDT Server"),
-    div(class='card-columns', \html_maplist(menu_card, Cards))
-  ]).
+  html(div(class='card-columns', \html_convlist(menu_card, Cards))).
 
 menu_card(card(Handle,Label,Content)) -->
-  {http_link_to_id(Handle, [], Uri)},
+  {catch(http_link_to_id(Handle, [], Uri), _, fail)},
   html(
     div(class=card,
       div(class='card-block', [
