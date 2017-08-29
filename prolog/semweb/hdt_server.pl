@@ -12,6 +12,7 @@
 :- use_module(library(conf_ext)).
 :- use_module(library(dict_ext)).
 :- use_module(library(error)).
+:- use_module(library(graph/rdf2gml)).
 :- use_module(library(html/html_doc)).
 :- use_module(library(html/html_ext)).
 :- use_module(library(html/html_pagination)).
@@ -34,10 +35,20 @@
 :- http_handler(root(doc), doc_handler, [methods([get,head,options])]).
 :- http_handler(root(graphs), graphs_handler, [methods([get,head,options])]).
 :- http_handler(root(objects), objects_handler, [methods([get,head,options])]).
+:- http_handler(root(objects/est), objects_est_handler, [methods([get,head,options])]).
+:- http_handler(root(objects/id), objects_id_handler, [methods([get,head,options])]).
 :- http_handler(root(predicates), predicates_handler, [methods([get,head,options])]).
+:- http_handler(root(predicates/est), predicates_est_handler, [methods([get,head,options])]).
+:- http_handler(root(predicates/id), predicates_id_handler, [methods([get,head,options])]).
 :- http_handler(root(shared), shared_handler, [methods([get,head,options])]).
+:- http_handler(root(shared/est), shared_est_handler, [methods([get,head,options])]).
+:- http_handler(root(shared/id), shared_id_handler, [methods([get,head,options])]).
 :- http_handler(root(subjects), subjects_handler, [methods([get,head,options])]).
+:- http_handler(root(subjects/est), subjects_est_handler, [methods([get,head,options])]).
+:- http_handler(root(subjects/id), subjects_id_handler, [methods([get,head,options])]).
 :- http_handler(root(triples), triples_handler, [methods([get,head,options])]).
+:- http_handler(root(triples/est), triples_est_handler, [methods([get,head,options])]).
+:- http_handler(root(triples/id), triples_id_handler, [methods([get,head,options])]).
 
 :- initialization
    conf_json(Dict1),
@@ -52,7 +63,9 @@
    ).
 
 :- meta_predicate
-   terms_handler(+, 3, +),
+   terms_handler(+, 2, +),
+   terms_id_handler(+, 2, +),
+   terms_id_method(+, 2, +, +, +),
    terms_method(+, 2, +, +, +).
 
 :- multifile
@@ -63,12 +76,12 @@
     user:head//2.
 
 html:handle_description(doc_handler, "Documentation").
-html:handle_description(graphs_handler, "graphs").
-html:handle_description(objects_handler, "objects").
-html:handle_description(predicates_handler, "predicates").
-html:handle_description(shared_handler, "shared").
-html:handle_description(subjects_handler, "subjects").
-html:handle_description(triples_handler, "triples").
+html:handle_description(graphs_handler, "Graphs").
+html:handle_description(objects_handler, "Objects").
+html:handle_description(predicates_handler, "Predicates").
+html:handle_description(shared_handler, "Shared terms").
+html:handle_description(subjects_handler, "Subjects").
+html:handle_description(triples_handler, "Triples").
 
 html:menu_item(doc_handler, "Documentation").
 html:menu_item(hdt_terms, "Terms").
@@ -77,9 +90,17 @@ html:menu_item(hdt_terms, "Terms").
   html:menu_item(hdt_terms, predicates_handler, "Predicates").
   html:menu_item(hdt_terms, shared_handler, "Shared").
   html:menu_item(hdt_terms, subjects_handler, "Subjects").
+html:menu_item(hdt_terms_id, "Term IDs").
+  html:menu_item(hdt_terms_id, objects_id_handler, "Object IDs").
+  html:menu_item(hdt_terms_id, predicates_id_handler, "Predicate IDs").
+  html:menu_item(hdt_terms_id, shared_id_handler, "Shared IDs").
+  html:menu_item(hdt_terms_id, subjects_id_handler, "Subject IDs").
 html:menu_item(triples_handler, "Triples").
+html:menu_item(triples_id_handler, "Triples IDs").
 
 :- set_setting(http:products, ['HDT-Server'-'v0.0.1']).
+
+
 
 
 
@@ -87,12 +108,12 @@ html:menu_item(triples_handler, "Triples").
 hdt_handler(Request) :-
   rest_method(Request, hdt_method).
 
-% GET, HEAD
+% /: GET,HEAD
 hdt_method(Method, MediaTypes) :-
   http_is_get(Method),
   rest_media_type(MediaTypes, hdt_media_type).
 
-% GET, HEAD: text/html
+% /: GET,HEAD: text/html
 hdt_media_type(media(text/html,_)) :-
   html_page(hdt(_,[]), [], [\hdt_page]).
 
@@ -136,12 +157,12 @@ menu_card(menu_item(Handler,Label)) -->
 doc_handler(Request) :-
   rest_method(Request, doc_method).
 
-% GET, HEAD
+% /doc: GET,HEAD
 doc_method(Method, MediaTypes) :-
   http_is_get(Method),
   rest_media_type(MediaTypes, doc_media_type).
 
-% GET, HEAD: text/html
+% /doc: GET,HEAD: text/html
 doc_media_type(media(text/html,_)) :-
   html_page(hdt(_,[]), [], [\http_param_table(hdt_server)]).
 
@@ -151,7 +172,7 @@ doc_media_type(media(text/html,_)) :-
 graphs_handler(Request) :-
   rest_method(Request, graphs_method(Request)).
 
-% GET, HEAD
+% /graphs: GET,HEAD
 graphs_method(Request, Method, MediaTypes) :-
   http_is_get(Method),
   http_parameters(
@@ -168,17 +189,14 @@ graphs_method(Request, Method, MediaTypes) :-
   ),
   rest_media_type(MediaTypes, graphs_media_type(Page)).
 
-% GET, HEAD: application/json
+% /graphs: GET,HEAD: application/json
 graphs_media_type(Page, media(application/json,_)) :-
   http_pagination_json(Page).
-% GET, HEAD: text/html
+% /graphs: GET,HEAD: text/html
 graphs_media_type(Page, media(text/html,_)) :-
   http_pagination_header(Page),
-  html_page(
-    hdt(Page,["Graphs"]),
-    [],
-    [\html_pagination_result(Page, graph_table)]
-  ).
+  html_page(hdt(Page,["Graphs"]), [],
+            [\html_pagination_result(Page, graph_table)]).
 
 graph_table(Gs) -->
   html(ul(\html_maplist(graph_row, Gs))).
@@ -196,89 +214,115 @@ graph_row(G) -->
 objects_handler(Request) :-
   terms_handler(Request, hdt_object_, objects).
 
-hdt_object_(false, Hdt, O) :-
+hdt_object_(Hdt, O) :-
   hdt_object(Hdt, O).
-hdt_object_(true, Hdt, Id) :- % TBD
+
+% /objects/est
+objects_est_handler(Request) :-
+  terms_est_handler(Request, objects).
+
+% /objects/id
+objects_id_handler(Request) :-
+  terms_id_handler(Request, hdt_object_id_, objects).
+
+hdt_object_id_(Hdt, Id) :- % TBD
   hdt_object(Hdt, O),
   hdt_object_id(Hdt,O, Id).
+
 
 
 % /predicates
 predicates_handler(Request) :-
   terms_handler(Request, hdt_predicate_, predicates).
 
-hdt_predicate_(false, Hdt, P) :-
+hdt_predicate_(Hdt, P) :-
   hdt_predicate(Hdt, P).
-hdt_predicate_(true, Hdt, Id) :- % TBD
+
+% /predicates/est
+predicates_est_handler(Request) :-
+  terms_est_handler(Request, predicates).
+
+% /predicates/id
+predicates_id_handler(Request) :-
+  terms_id_handler(Request, hdt_predicate_id_, predicates).
+
+hdt_predicate_id_(Hdt, Id) :- % TBD
   hdt_predicate(Hdt, P),
   hdt_predicate_id(Hdt, P, Id).
+
 
 
 % /shared
 shared_handler(Request) :-
   terms_handler(Request, hdt_shared_, shared).
 
-hdt_shared_(false, Hdt, Node) :-
+hdt_shared_(Hdt, Node) :-
   hdt_shared(Hdt, Node).
-hdt_shared_(true, Hdt, Id) :- % TBD
+
+% /shared/est
+shared_est_handler(Request) :-
+  terms_est_handler(Request, shared).
+
+% /shared/id
+shared_id_handler(Request) :-
+  terms_id_handler(Request, hdt_shared_, shared).
+
+hdt_shared_id_(Hdt, Id) :- % TBD
   hdt_shared(Hdt, Node),
   hdt_subject_id(Hdt, Node, Id).
+
 
 
 % /subjects
 subjects_handler(Request) :-
   terms_handler(Request, hdt_subject_, subjects).
 
-hdt_subject_(false, Hdt, S) :-
+hdt_subject_(Hdt, S) :-
   hdt_subject(Hdt, S).
-hdt_subject_(true, Hdt, Id) :- % TBD
+
+% /subjects/est
+subjects_est_handler(Request) :-
+  terms_est_handler(Request, subjects).
+
+% /subjects/id
+subjects_id_handler(Request) :-
+  terms_id_handler(Request, hdt_subject_id_, subjects).
+
+hdt_subject_id_(Hdt, Id) :- % TBD
   hdt_subject(Hdt, S),
   hdt_subject_id(Hdt, S, Id).
 
 
-terms_handler(Request, Goal_3, Key) :-
-  rest_method(Request, terms_method(Request, Goal_3, Key)).
 
-% GET, HEAD
-terms_method(Request, Goal_3, Key, Method, MediaTypes) :-
+% /terms
+terms_handler(Request, Goal_2, Key) :-
+  rest_method(Request, terms_method(Request, Goal_2, Key)).
+
+% /terms: GET,HEAD
+terms_method(Request, Goal_2, Key, Method, MediaTypes) :-
   http_is_get(Method),
   http_parameters(
     Request,
-    [
-      est(Est),
-      graph(G),
-      id(Id),
-      page(PageNumber),
-      page_size(PageSize),
-      prefix(Prefix),
-      rnd(_Rnd)
-    ],
+    [graph(G),page(PageNumber),page_size(PageSize),prefix(Prefix),rnd(_Rnd)],
     [attribute_declarations(http_param)]
   ),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
   (hdt_graph(Hdt, G) -> true ; existence_error(hdt_graph, G)),
-  Options1 = _{page_number: PageNumber, page_size: PageSize, uri: Uri},
-  (   var(G)
-  ->  Options2 = Options1
-  ;   put_dict(query, Options1, [graph(G)], Options2)
-  ),
+  Options = _{graph: G, page_number: PageNumber, page_size: PageSize, uri: Uri},
   (   ground(Prefix)
   ->  key_role_(Key, Role),
       pagination_bulk(
         hdt_suggestions(Hdt, Prefix, Role, PageSize),
-        Options2,
+        Options,
         Page
       ),
       rest_media_type(MediaTypes, terms_media_type(Key, G, Page))
-  ;   Est == true
-  ->  rdf_statistic(hdt, Key, Cost, G),
-      rest_media_type(MediaTypes, terms_est_media_type(Key, Cost))
   ;   pagination(
         Term,
-        call(Goal_3, Id, Hdt, Term),
+        call(Goal_2, Hdt, Term),
         {Key,G}/[N]>>rdf_statistic(hdt, Key, N, G),
-        Options2,
+        Options,
         Page
       ),
       rest_media_type(MediaTypes, terms_media_type(Key, G, Page))
@@ -289,46 +333,129 @@ key_role_(predicates, predicate).
 key_role_(shared, subject). %HACK
 key_role_(subjects, subject).
 
-% GET, HEAD: application/json
+% /terms: GET,HEAD: application/json
+terms_media_type(_, _, Page, media(application/json,_)) :-
+  http_pagination_json(Page).
+% /terms: GET,HEAD: text/html
+terms_media_type(Key, G, Page, media(text/html,_)) :-
+  http_pagination_header(Page),
+  atom_capitalize(Key, CKey),
+  html_page(hdt(Page,[CKey]), [],
+            [\html_pagination_result(Page, terms_table(G))]).
+
+terms_table(G, Terms) -->
+  html(ul(\html_maplist(terms_row(G), Terms))).
+
+terms_row(G, Term) -->
+  {
+    (rdf_equal(graph:default, G) -> Query = [] ; Query = [graph(G)]),
+    http_link_to_id(triples_handler, [subject(Term)|Query], UriS),
+    http_link_to_id(triples_handler, [predicate(Term)|Query], UriP),
+    http_link_to_id(triples_handler, [object(Term)|Query], UriO)
+  },
+  html(
+    li([
+      a(href=Term, Term),
+      " ",
+      a(href=UriS, "(s)"),
+      " ",
+      a(href=UriP, "(p)"),
+      " ",
+      a(href=UriO, "(o)")
+    ])
+  ).
+
+
+
+% /terms/est
+terms_est_handler(Request, Key) :-
+  rest_method(Request, terms_est_method(Request, Key)).
+
+% /terms/est: GET,HEAD
+terms_est_method(Request, Key, Method, MediaTypes) :-
+  http_is_get(Method),
+  http_parameters(Request, [graph(G)], [attribute_declarations(http_param)]),
+  (hdt_graph(Hdt, G) -> true ; existence_error(hdt_graph, G)),
+  rdf_statistic(hdt0, Key, Cost, Hdt),
+  rest_media_type(MediaTypes, terms_est_media_type(Key, Cost)).
+
+% /terms/est: GET,HEAD: application/json
 terms_est_media_type(_, Cost, media(application/json,_)) :-
   http_reply_json(Cost).
-% GET, HEAD: text/html
+% /terms/est: GET,HEAD: text/html
 terms_est_media_type(Key, Cost, media(text/html,_)) :-
   atom_capitalize(Key, CKey),
   html_page(hdt(_,["Terms",CKey]), [], [\html_thousands(Cost)]).
 
-% GET, HEAD: application/json
-terms_media_type(_, _, Page, media(application/json,_)) :-
+
+
+% /terms/id
+terms_id_handler(Request, Goal_2, Key) :-
+  rest_method(Request, terms_id_method(Request, Goal_2, Key)).
+
+% /terms/id: GET,HEAD
+terms_id_method(Request, Goal_2, Key, Method, MediaTypes) :-
+  http_is_get(Method),
+  http_parameters(
+    Request,
+    [graph(G),page(PageNumber),page_size(PageSize),prefix(Prefix),rnd(_Rnd)],
+    [attribute_declarations(http_param)]
+  ),
+  memberchk(request_uri(RelUri), Request),
+  http_absolute_uri(RelUri, Uri),
+  (hdt_graph(Hdt, G) -> true ; existence_error(hdt_graph, G)),
+  Options = _{
+    graph: G,
+    page_number: PageNumber,
+    page_size: PageSize,
+    uri: Uri
+  },
+  (   ground(Prefix)
+  ->  key_role_(Key, Role),
+      pagination_bulk(
+        hdt_suggestions(Hdt, Prefix, Role, PageSize),
+        Options,
+        Page
+      )
+  ;   pagination(
+        Term,
+        call(Goal_2, Hdt, Term),
+        {Key,G}/[N]>>rdf_statistic(hdt, Key, N, G),
+        Options,
+        Page
+      )
+  ),
+  rest_media_type(MediaTypes, terms_id_media_type(Key, G, Page)).
+
+% /terms/id: GET,HEAD: application/json
+terms_id_media_type(_, _, Page, media(application/json,_)) :-
   http_pagination_json(Page).
-% GET, HEAD: text/html
-terms_media_type(Key, G, Page, media(text/html,_)) :-
+% /terms/id: GET,HEAD: text/html
+terms_id_media_type(Key, G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
   atom_capitalize(Key, CKey),
-  html_page(
-    hdt(Page,[CKey]),
-    [],
-    [\html_pagination_result(Page, terms_table(G))]
-  ).
+  html_page(hdt(Page,[CKey]), [],
+            [\html_pagination_result(Page, terms_id_table(G))]).
 
-terms_table(G, Ps) -->
-  html(ul(\html_maplist(terms_row(G), Ps))).
+terms_id_table(G, Ids) -->
+  html(ul(\html_maplist(terms_id_row(G), Ids))).
 
-terms_row(G, P) -->
+terms_id_row(G, Id) -->
   {
-    (var(G) -> Query = [] ; Query = [graph(G)]),
-    http_link_to_id(triples_handler, [subject(P)|Query], Uri1),
-    http_link_to_id(triples_handler, [predicate(P)|Query], Uri2),
-    http_link_to_id(triples_handler, [object(P)|Query], Uri3)
+    (rdf_equal(graph:default, G) -> Query = [] ; Query = [graph(G)]),
+    http_link_to_id(triples_handler, [subject(Id)|Query], UriS),
+    http_link_to_id(triples_handler, [predicate(Id)|Query], UriP),
+    http_link_to_id(triples_handler, [object(Id)|Query], UriO)
   },
   html(
     li([
-      a(href=P, P),
+      Id,
       " ",
-      a(href=Uri1, "(s)"),
+      a(href=UriS, "(s)"),
       " ",
-      a(href=Uri2, "(p)"),
+      a(href=UriP, "(p)"),
       " ",
-      a(href=Uri3, "(o)")
+      a(href=UriO, "(o)")
     ])
   ).
 
@@ -338,15 +465,13 @@ terms_row(G, P) -->
 triples_handler(Request) :-
   rest_method(Request, triples_method(Request)).
 
-% GET, HEAD
+% /triples: GET,HEAD
 triples_method(Request, Method, MediaTypes) :-
   http_is_get(Method),
   http_parameters(
     Request,
     [
-      est(Est),
       graph(G),
-      id(Id),
       object(O1),
       page(PageNumber),
       page_size(PageSize),
@@ -355,35 +480,110 @@ triples_method(Request, Method, MediaTypes) :-
     ],
     [attribute_declarations(http_param)]
   ),
-  (   Id == true
-  ->  maplist(id_arg_, [S1,P1,O1], [S2,P2,O2])
-  ;   maplist(term_arg_, [S1,P1,O1], [S2,P2,O2])
-  ),
+  maplist(term_arg_, [S1,P1,O1], [S2,P2,O2]),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  include(ground, [graph(G),object(O1),predicate(P1),subject(S1)], Query),
+  include(ground, [object(O1),predicate(P1),subject(S1)], Query),
   (hdt_graph(Hdt, G) -> true ; existence_error(hdt_graph, G)),
-  Options = _{
-    page_number: PageNumber,
-    page_size: PageSize,
-    query: [id(Id)|Query],
-    uri: Uri
-  },
-  (   Est == true
-  ->  hdt_cost_(Id, Hdt, S2, P2, O2, Cost),
-      rest_media_type(MediaTypes, triples_est_media_type(Cost))
-  ;   pagination(
-        rdf(S2,P2,O2),
-        hdt_search_(Id, Hdt, S2, P2, O2),
-        hdt_cost_(Id, Hdt, S2, P2, O2),
-        Options,
-        Page
-      ),
-      (   Id == true
-      ->  rest_media_type(MediaTypes, triples_id_media_type(G, Page))
-      ;   rest_media_type(MediaTypes, triples_media_type(G, Page))
-      )
-  ).
+  pagination(
+    rdf(S2,P2,O2),
+    % HACK: In LL12 we did not clean literals based on their datatype
+    %       IRI, e.g., gYear',"1996-01-01T00:00:00-04:00"
+    catch(hdt_search(Hdt, S2, P2, O2), _E, fail),
+    hdt_search_cost(Hdt, S2, P2, O2),
+    _{
+      page_number: PageNumber,
+      page_size: PageSize,
+      query: [graph(G)|Query],
+      uri: Uri
+    },
+    Page
+  ),
+  rest_media_type(MediaTypes, triples_media_type(G, Page)).
+
+term_arg_(X, X) :-
+  var(X), !.
+term_arg_(Atom, Term) :-
+  rdf_atom_to_term(Atom, Term).
+
+% /triples: GET,HEAD: application/n-triples
+triples_media_type(_, Page, media(application/'n-triples',_)) :-
+  format("Content-Type: application/n-triples\n"),
+  http_pagination_header(Page),
+  nl,
+  write_ntuples(Page.results).
+% /triples: GET,HEAD: text/html
+triples_media_type(G, Page, media(text/html,_)) :-
+  http_pagination_header(Page),
+  rdf_global_id(graph:GLocal, G),
+  html_page(hdt(Page,["Triples",GLocal]), [],
+            [\html_pagination_result(Page, rdf_html_triple_table(Page.uri, G))]).
+
+
+
+% /triples/est
+triples_est_handler(Request) :-
+  rest_method(Request, triples_est_method(Request)).
+
+% /triples/est: GET,HEAD
+triples_est_method(Request, Method, MediaTypes) :-
+  http_is_get(Method),
+  http_parameters(
+    Request,
+    [graph(G),object(O1),predicate(P1),subject(S1)],
+    [attribute_declarations(http_param)]
+  ),
+  (hdt_graph(Hdt, G) -> true ; existence_error(hdt_graph, G)),
+  maplist(term_arg_, [S1,P1,O1], [S2,P2,O2]),
+  hdt_search_cost(Hdt, S2, P2, O2, Cost),
+  rest_media_type(MediaTypes, triples_est_media_type(Cost)).
+
+% /triples/est: GET,HEAD: application/json
+triples_est_media_type(Cost, media(application/json,_)) :-
+  http_reply_json(Cost).
+% /triples/est: GET,HEAD: text/html
+triples_est_media_type(Cost, media(text/html,_)) :-
+  html_page(hdt(_,["Triples","Estimate"]), [], [\html_thousands(Cost)]).
+
+
+
+% /triples/id
+triples_id_handler(Request) :-
+  rest_method(Request, triples_id_method(Request)).
+
+% /triples/id: GET,HEAD
+triples_id_method(Request, Method, MediaTypes) :-
+  http_is_get(Method),
+  http_parameters(
+    Request,
+    [
+      graph(G),
+      object(O1),
+      page(PageNumber),
+      page_size(PageSize),
+      predicate(P1),
+      subject(S1)
+    ],
+    [attribute_declarations(http_param)]
+  ),
+  maplist(id_arg_, [S1,P1,O1], [S2,P2,O2]),
+  memberchk(request_uri(RelUri), Request),
+  http_absolute_uri(RelUri, Uri),
+  (hdt_graph(Hdt, G) -> true ; existence_error(hdt_graph, G)),
+  include(ground, [object(O1),predicate(P1),subject(S1)], Query),
+  pagination(
+    rdf(S2,P2,O2),
+    hdt_search_id(Hdt, S2, P2, O2),
+    hdt:hdt_search_cost_id(Hdt, S2, P2, O2),
+    _{
+      page_number: PageNumber,
+      page_size: PageSize,
+      query: [graph(G)|Query],
+      uri: Uri
+    },
+    Page
+  ),
+  rest_media_type(MediaTypes, triples_id_media_type(G, Page)).
 
 id_arg_(X, X) :-
   var(X), !.
@@ -391,42 +591,27 @@ id_arg_(Atom, N) :-
   atom_number(Atom, N),
   must_be(positive_integer, N).
 
-term_arg_(X, X) :-
-  var(X), !.
-term_arg_(Atom, Term) :-
-  rdf_atom_to_term(Atom, Term).
-
-% HACK: In LL12 we did not clean literals based on their datatype IRI,
-%       e.g., gYear',"1996-01-01T00:00:00-04:00"
-hdt_search_(false, Hdt, S, P, O) :- !,
-  catch(hdt_search(Hdt, S, P, O), _E, fail).
-hdt_search_(true, Hdt, S, P, O) :- !,
-  hdt_search_id(Hdt, S, P, O).
-
-hdt_cost_(false, Hdt, S, P, O, Cost) :- !,
-  hdt_search_cost(Hdt, S, P, O, Cost).
-hdt_cost_(true, Hdt, S, P, O, Cost) :-
-  hdt_search_cost_id(Hdt, S, P, O, Cost).
-
-% GET, HEAD: application/json
-triples_est_media_type(Cost, media(application/json,_)) :-
-  http_reply_json(Cost).
-% GET, HEAD: text/html
-triples_est_media_type(Cost, media(text/html,_)) :-
-  html_page(hdt(_,["Triples","Estimate"]), [], [\html_thousands(Cost)]).
-
-% GET, HEAD: application/json
+% /triples/id: GET,HEAD: GML
+triples_id_media_type(_, Page, media(application/gml,_)) :-
+  format("Content-Type: application/gml\n"),
+  http_pagination_header(Page),
+  nl,
+  write_gml_triples(Page.results).
+% /triples/id: GET,HEAD: application/json
 triples_id_media_type(_, Page, media(application/json,_)) :-
   http_pagination_json(Page).
-% GET, HEAD: text/html
+% /triples/id: GET,HEAD: text/html
 triples_id_media_type(G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
   rdf_global_id(graph:GLocal, G),
-  html_page(
-    hdt(Page,["Triples","Numeric Identifiers",GLocal]),
-    [],
-    [\html_pagination_result(Page, hdt_id_table(Page.uri, G))]
-  ).
+  html_page(hdt(Page,["Triples","Identifiers",GLocal]), [],
+            [\html_pagination_result(Page, hdt_id_table(Page.uri, G))]).
+
+write_gml_triples(Triples) :-
+  maplist(write_gml_triple, Triples).
+
+write_gml_triple(rdf(S,P,O)) :-
+  format("edge [ label ~a source ~a target ~a ]\n", [P,S,O]).
 
 hdt_id_table(Uri, G, Triples) -->
   table(
@@ -451,21 +636,7 @@ hdt_id_table_row(Uri, G, rdf(S,P,O)) -->
     ])
   ).
 
-% GET, HEAD: application/n-triples
-triples_media_type(_, Page, media(application/'n-triples',_)) :-
-  format("Content-Type: application/n-triples\n"),
-  http_pagination_header(Page),
-  nl,
-  write_ntuples(Page.results).
-% GET, HEAD: text/html
-triples_media_type(G, Page, media(text/html,_)) :-
-  http_pagination_header(Page),
-  rdf_global_id(graph:GLocal, G),
-  html_page(
-    hdt(Page,["Triples",GLocal]),
-    [],
-    [\html_pagination_result(Page, rdf_html_triple_table(Page.uri, G))]
-  ).
+
 
 
 
@@ -527,6 +698,8 @@ http_param(subject, [
 
 
 
+
+
 % HTML STYLE %
 
 user:head(hdt(Page,Subtitles), Content_0) -->
@@ -552,15 +725,5 @@ brand -->
   html("HDT-Server").
 
 krr -->
-  {
-    aggregate_all(set(G), hdt_graph(_, G), Gs),
-    http_absolute_location(img('krr.svg'), Image)
-  },
-  html([
-    \navbar_dropdown_menu('graph-menu', "Graph", graph_item, Gs),
-    a(href='http://krr.cs.vu.nl', img(src=Image, []))
-  ]).
-
-graph_item(G) -->
-  {rdf_global_id(graph:Local, G)},
-  html(option([value(G)], Local)).
+  {http_absolute_location(img('krr.svg'), Image)},
+  html(a(href='http://krr.cs.vu.nl', img(src=Image, []))).
