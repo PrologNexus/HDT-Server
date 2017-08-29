@@ -27,7 +27,7 @@
 :- use_module(library(yall)).
 
 :- dynamic
-    html:handle_description/2,
+    html:handler_description/2,
     html:menu_item/2,
     html:menu_item/3.
 
@@ -69,19 +69,19 @@
    terms_method(+, 2, +, +, +).
 
 :- multifile
-    html:handle_description/2,
+    html:handler_description/2,
     html:menu_item/2,
     html:menu_item/3,
     user:body//2,
     user:head//2.
 
-html:handle_description(doc_handler, "Documentation").
-html:handle_description(graphs_handler, "Graphs").
-html:handle_description(objects_handler, "Objects").
-html:handle_description(predicates_handler, "Predicates").
-html:handle_description(shared_handler, "Shared terms").
-html:handle_description(subjects_handler, "Subjects").
-html:handle_description(triples_handler, "Triples").
+html:handler_description(doc_handler, "Documentation").
+html:handler_description(graphs_handler, "Graphs").
+html:handler_description(objects_handler, "Objects").
+html:handler_description(predicates_handler, "Predicates").
+html:handler_description(shared_handler, "Shared terms").
+html:handler_description(subjects_handler, "Subjects").
+html:handler_description(triples_handler, "Triples").
 
 html:menu_item(doc_handler, "Documentation").
 html:menu_item(hdt_terms, "Terms").
@@ -164,7 +164,20 @@ doc_method(Method, MediaTypes) :-
 
 % /doc: GET,HEAD: text/html
 doc_media_type(media(text/html,_)) :-
-  html_page(hdt(_,[]), [], [\http_param_table(hdt_server)]).
+  html_page(
+    hdt(_,[]),
+    [],
+    [
+      \http_doc_handler(hdt_server, graphs_handler),
+      \http_doc_handler(hdt_server, objects_handler),
+      \http_doc_handler(hdt_server, predicates_handler),
+      \http_doc_handler(hdt_server, shared_handler),
+      \http_doc_handler(hdt_server, subjects_handler),
+      \http_doc_handler(hdt_server, triples_handler),
+      \http_doc_handler(hdt_server, triples_est_handler),
+      \http_doc_handler(hdt_server, triples_id_handler)
+    ]
+  ).
 
 
 
@@ -640,6 +653,49 @@ hdt_id_table_row(Uri, G, rdf(S,P,O)) -->
 
 
 
+% HTTP MEDIA TYPES %
+
+http_media_types(hdt_handler, [media(text/html,[])]).
+http_media_types(doc_handler, [media(text/html,[])]).
+http_media_types(graphs_handler, [media(application/json,[]),
+                                  media(text/html,[])]).
+http_media_types(objects_handler, [media(application/json,[]),
+                                   media(text/html,[])]).
+http_media_types(objects_est_handler, [media(application/json,[]),
+                                       media(text/html,[])]).
+http_media_types(objects_id_handler, [media(application/json,[]),
+                                      media(text/html,[])]).
+http_media_types(predicates_handler, [media(application/json,[]),
+                                      media(text/html,[])]).
+http_media_types(predicates_est_handler, [media(application/json,[]),
+                                          media(text/html,[])]).
+http_media_types(predicates_id_handler, [media(application/json,[]),
+                                         media(text/html,[])]).
+http_media_types(shared_handler, [media(application/json,[]),
+                                  media(text/html,[])]).
+http_media_types(shared_est_handler, [media(application/json,[]),
+                                      media(text/html,[])]).
+http_media_types(shared_id_handler, [media(application/json,[]),
+                                     media(text/html,[])]).
+http_media_types(subjects_handler, [media(application/json,[]),
+                                    media(text/html,[])]).
+http_media_types(subjects_est_handler, [media(application/json,[]),
+                                        media(text/html,[])]).
+http_media_types(subjects_id_handler, [media(application/json,[]),
+                                       media(text/html,[])]).
+http_media_types(triples_handler, [media(application/'n-triples',[]),
+                                   media(application/'n-quads',[]),
+                                   media(text/html,[])]).
+http_media_types(triples_est_handler, [media(application/json,[]),
+                                       media(text/html,[])]).
+http_media_types(triples_id_handler, [media(application/json,[]),
+                                      media(text/html,[]),
+                                      media(text/'vnd.graphviz',[])]).
+
+
+
+
+
 % HTTP PARAMETERS %
 
 http_param(est, [
@@ -695,6 +751,25 @@ http_param(subject, [
   description("Filter results with this subject term."),
   optional(true)
 ]).
+
+http_params(hdt_handler, []).
+http_params(doc_handler, []).
+http_params(graphs_handler, [page,page_size]).
+http_params(objects_handler, [graph,page,page_size,prefix,rnd]).
+http_params(objects_est_handler, [graph]).
+http_params(objects_id_handler, [graph,page,page_size,prefix,rnd]).
+http_params(predicates_handler, [graph,page,page_size,prefix,rnd]).
+http_params(predicates_est_handler, [graph]).
+http_params(predicates_id_handler, [graph,page,page_size,prefix,rnd]).
+http_params(shared_handler, [graph,page,page_size,prefix,rnd]).
+http_params(shared_est_handler, [graph]).
+http_params(shared_id_handler, [graph,page,page_size,prefix,rnd]).
+http_params(subjects_handler, [graph,page,page_size,prefix,rnd]).
+http_params(subjects_est_handler, [graph]).
+http_params(subjects_id_handler, [graph,page,page_size,prefix,rnd]).
+http_params(triples_handler, [graph,object,page,page_size,predicate,subject]).
+http_params(triples_est_handler, [graph,object,predicate,subject]).
+http_params(triples_id_handler, [graph,object,page,page_size,pedicate,subject]).
 
 
 
