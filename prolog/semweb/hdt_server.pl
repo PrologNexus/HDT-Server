@@ -456,7 +456,7 @@ triples_media_type(_, Page, media(application/'n-triples',_)) :-
   format("Content-Type: application/n-triples\n"),
   http_pagination_header(Page),
   nl,
-  write_ntuples(triples, Page.results).
+  write_ntuples(Page.results).
 % GET, HEAD: text/html
 triples_media_type(G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
