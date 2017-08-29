@@ -97,31 +97,35 @@ hdt_media_type(media(text/html,_)) :-
   html_page(hdt(_,[]), [], [\hdt_page]).
 
 hdt_page -->
-  html([h1("HDT APIs:"),\menu_deck]).
+  html([h1("HDT APIs"),\menu_deck]).
 
 menu_deck -->
   {
-    findall(
-      card(Handle,Label,Label),
-      (
-        (   html:menu_item(Handler, Label)
-        ;   html:menu_item(Handler0, _),
-            html:menu_item(Handler0, Handler, Label)
-        ),
-        Handle \== doc_handler
-      ),
-      Cards
+    aggregate_all(
+      set(menu_item(Handler,Label)),
+      html:menu_item(Handler, Label),
+      Nodes
     )
   },
-  html(div(class='card-columns', \html_convlist(menu_card, Cards))).
+  html(div(class='card-columns', \html_convlist(menu_card, Nodes))).
 
-menu_card(card(Handle,Label,Content)) -->
-  {catch(http_link_to_id(Handle, [], Uri), _, fail)},
+menu_card(menu_item(MajorHandler,MajorLabel)) -->
+  {
+    aggregate_all(
+      set(menu_item(MinorHandler,MinorLabel)),
+      html:menu_item(MajorHandler, MinorHandler, MinorLabel),
+      MinorNodes
+    ),
+    MinorNodes \== []
+  }, !,
+  html([h2(MajorLabel),\html_maplist(menu_card, MinorNodes)]).
+menu_card(menu_item(Handler,Label)) -->
+  {http_link_to_id(Handler, [], Uri)},
   html(
     div(class=card,
       div(class='card-block', [
         a(href=Uri, h3(class='card-title', Label)),
-        p(class='card-text', Content)
+        p(class='card-text', Label)
       ])
     )
   ).
