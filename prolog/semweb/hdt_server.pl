@@ -31,6 +31,13 @@
     html:menu_item/2,
     html:menu_item/3.
 
+http:convert_parameter(hdt_term, X, X) :-
+  var(X), !.
+http:convert_parameter(hdt_term, In, Out) :-
+  atom_number(In, Out), !.
+http:convert_parameter(hdt_term, In, Out) :-
+  atom_to_term(In, Out).
+
 :- http_handler(/, hdt_handler, [methods([get,head,options]),priority(-1)]).
 :- http_handler(root(doc), doc_handler, [methods([get,head,options])]).
 :- http_handler(root(graph), graph_handler, [methods([get,head,options])]).
@@ -61,15 +68,9 @@
      (
        _{file: File, name: Name} :< Dict2,
        rdf_global_id(graph:Name, G),
-       hdt_init(File, G)
+       hdt_open(File, [graph(G)])
      )
    ).
-
-:- meta_predicate
-   term_handler(+, 2, +),
-   term_id_handler(+, 2, +),
-   term_id_method(+, 2, +, +, +),
-   term_method(+, 2, +, +, +).
 
 :- multifile
     html:handler_description/2,
@@ -175,8 +176,11 @@ graph_media_type(Page, media(application/json,_)) :-
 % /graph: GET,HEAD: text/html
 graph_media_type(Page, media(text/html,_)) :-
   http_pagination_header(Page),
-  html_page(hdt(Page,["Graphs"]), [],
-            [\html_pagination_result(Page, graph_table)]).
+  html_page(
+    hdt(Page,["Graphs"]),
+    [],
+    [\html_pagination_result(Page, graph_table)]
+  ).
 
 graph_table(Gs) -->
   html(ul(\html_maplist(graph_row, Gs))).
@@ -192,149 +196,143 @@ graph_row(G) -->
 
 % /node
 node_handler(Request) :-
-  term_handler(Request, hdt_node_, nodes).
+  term_handler(Request, node).
 
-hdt_node_(Hdt, Node) :-
-  hdt_node(Hdt, Node).
 
 % /node/count
 node_count_handler(Request) :-
-  term_count_handler(Request, nodes).
+  term_count_handler(Request, node).
+
+
+% /node/id
+node_id_handler(Request) :-
+  term_id_handler(Request, node).
 
 
 
 % /object
 object_handler(Request) :-
-  term_handler(Request, hdt_object_, objects).
+  term_handler(Request, object).
 
-hdt_object_(Hdt, O) :-
-  hdt_object(Hdt, O).
 
 % /object/count
 object_count_handler(Request) :-
-  term_count_handler(Request, objects).
+  term_count_handler(Request, object).
+
 
 % /object/id
 object_id_handler(Request) :-
-  term_id_handler(Request, hdt_object_id_, objects).
-
-hdt_object_id_(Hdt, Id) :- % TBD
-  hdt_object(Hdt, O),
-  hdt_object_id(Hdt, O, Id).
+  term_id_handler(Request, object).
 
 
 
 % /predicate
 predicate_handler(Request) :-
-  term_handler(Request, hdt_predicate_, predicates).
+  term_handler(Request, predicate).
 
-hdt_predicate_(Hdt, P) :-
-  hdt_predicate(Hdt, P).
 
 % /predicate/count
 predicate_count_handler(Request) :-
-  term_count_handler(Request, predicates).
+  term_count_handler(Request, predicate).
+
 
 % /predicate/id
 predicate_id_handler(Request) :-
-  term_id_handler(Request, hdt_predicate_id_, predicates).
-
-hdt_predicate_id_(Hdt, Id) :- % TBD
-  hdt_predicate(Hdt, P),
-  hdt_predicate_id(Hdt, P, Id).
+  term_id_handler(Request, predicate).
 
 
 
 % /shared
 shared_handler(Request) :-
-  term_handler(Request, hdt_shared_, shared).
+  term_handler(Request, shared).
 
-hdt_shared_(Hdt, Node) :-
-  hdt_shared(Hdt, Node).
 
 % /shared/count
 shared_count_handler(Request) :-
   term_count_handler(Request, shared).
 
+
 % /shared/id
 shared_id_handler(Request) :-
-  term_id_handler(Request, hdt_shared_, shared).
-
-hdt_shared_id_(Hdt, Id) :- % TBD
-  hdt_shared(Hdt, Node),
-  hdt_subject_id(Hdt, Node, Id).
+  term_id_handler(Request, shared).
 
 
 
 % /subject
 subject_handler(Request) :-
-  term_handler(Request, hdt_subject_, subjects).
+  term_handler(Request, subject).
 
-hdt_subject_(Hdt, S) :-
-  hdt_subject(Hdt, S).
 
 % /subject/count
 subject_count_handler(Request) :-
-  term_count_handler(Request, subjects).
+  term_count_handler(Request, subject).
+
 
 % /subject/id
 subject_id_handler(Request) :-
-  term_id_handler(Request, hdt_subject_id_, subjects).
-
-hdt_subject_id_(Hdt, Id) :- % TBD
-  hdt_subject(Hdt, S),
-  hdt_subject_id(Hdt, S, Id).
+  term_id_handler(Request, subject).
 
 
 
 % /term
-term_handler(Request, Goal_2, Key) :-
-  rest_method(Request, term_method(Request, Goal_2, Key)).
+term_handler(Request, Role) :-
+  rest_method(Request, term_method(Request, Role)).
 
 % /term: GET,HEAD
-term_method(Request, Goal_2, Key, Method, MediaTypes) :-
+term_method(Request, Role, Method, MediaTypes) :-
   http_is_get(Method),
   http_parameters(
     Request,
-    [graph(G),page(PageNumber),page_size(PageSize),prefix(Prefix),rnd(_Rnd)],
+    [graph(G),page(PageNumber),page_size(PageSize),prefix(Prefix),rnd(Rnd)],
     [attribute_declarations(http_param)]
   ),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  (hdt_graph(Hdt, G) -> true ; existence_error(hdt_graph, G)),
-  Options = _{graph: G, page_number: PageNumber, page_size: PageSize, uri: Uri},
-  (   ground(Prefix)
-  ->  key_role_(Key, Role),
-      pagination_bulk(
-        hdt_suggestions(Hdt, Prefix, Role, PageSize),
-        Options,
-        Page
-      ),
-      rest_media_type(MediaTypes, term_media_type(Key, G, Page))
-  ;   pagination(
-        Term,
-        call(Goal_2, Hdt, Term),
-        {Key,G}/[N]>>rdf_statistic(hdt, Key, N, G),
-        Options,
-        Page
-      ),
-      rest_media_type(MediaTypes, term_media_type(Key, G, Page))
+  Options = _{
+    graph: G,
+    page_number: PageNumber,
+    page_size: PageSize,
+    uri: Uri
+  },
+  pagination(
+    Term,
+    hdt_term_(Role, Prefix, Rnd, G, Term),
+    hdt_term_count_(Role, Prefix, G),
+    Options,
+    Page
+  ),
+  rest_media_type(MediaTypes, term_media_type(Role, G, Page)).
+
+hdt_term_(Role, Prefix, Rnd, G, Term) :-
+  var(Prefix), !,
+  (   Rnd == false
+  ->  hdt_term(Role, Term, G)
+  ;   hdt_term_rnd(Role, Term, G)
+  ).
+hdt_term_(Role, Prefix, Rnd, G, Term) :-
+  (   Rnd == false
+  ->  hdt_prefix(Role, Prefix, Term, G)
+  ;   hdt_prefix_rnd(Role, Prefix, Term, G)
   ).
 
-key_role_(objects, object).
-key_role_(predicates, predicate).
-key_role_(shared, subject). %HACK
-key_role_(subjects, subject).
+hdt_term_count_(Role, Prefix, G, Count) :-
+  var(Prefix), !,
+  hdt_term_count(Role, Count, G).
+hdt_term_count_(Role, Prefix, G, Count) :-
+  hdt_prefix_count(Role, Prefix, Count, G).
 
 % /term: GET,HEAD: application/json
 term_media_type(_, _, Page, media(application/json,_)) :-
   http_pagination_json(Page).
 % /term: GET,HEAD: text/html
-term_media_type(Key, G, Page, media(text/html,_)) :-
+term_media_type(Role, G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
-  atom_capitalize(Key, CKey),
-  html_page(hdt(Page,[CKey]), [],
-            [\html_pagination_result(Page, term_table(G))]).
+  atom_capitalize(Role, CRole),
+  html_page(
+    hdt(Page,[CRole]),
+    [],
+    [\html_pagination_result(Page, term_table(G))]
+  ).
 
 term_table(G, Terms) -->
   html(ul(\html_maplist(term_row(G), Terms))).
@@ -361,74 +359,83 @@ term_row(G, Term) -->
 
 
 % /term/count
-term_count_handler(Request, Key) :-
-  rest_method(Request, term_count_method(Request, Key)).
+term_count_handler(Request, Role) :-
+  rest_method(Request, term_count_method(Request, Role)).
 
 % /term/count: GET,HEAD
-term_count_method(Request, Key, Method, MediaTypes) :-
+term_count_method(Request, Role, Method, MediaTypes) :-
   http_is_get(Method),
-  http_parameters(Request, [graph(G)], [attribute_declarations(http_param)]),
-  (hdt_graph(Hdt, G) -> true ; existence_error(hdt_graph, G)),
-  rdf_statistic(hdt0, Key, Cost, Hdt),
-  rest_media_type(MediaTypes, term_count_media_type(Key, Cost)).
+  http_parameters(
+    Request,
+    [graph(G)],
+    [attribute_declarations(http_param)]
+  ),
+  hdt_term_count(Role, Count, G),
+  rest_media_type(MediaTypes, term_count_media_type(Role, Count)).
 
 % /term/count: GET,HEAD: application/json
-term_count_media_type(_, Cost, media(application/json,_)) :-
-  http_reply_json(Cost).
+term_count_media_type(_, Count, media(application/json,_)) :-
+  http_reply_json(Count).
 % /term/count: GET,HEAD: text/html
-term_count_media_type(Key, Cost, media(text/html,_)) :-
-  atom_capitalize(Key, CKey),
-  html_page(hdt(_,["Terms",CKey]), [], [\html_thousands(Cost)]).
+term_count_media_type(Role, Count, media(text/html,_)) :-
+  atom_capitalize(Role, CRole),
+  html_page(hdt(_,["Terms",CRole]), [], [\html_thousands(Count)]).
 
 
 
 % /term/id
-term_id_handler(Request, Goal_2, Key) :-
-  rest_method(Request, term_id_method(Request, Goal_2, Key)).
+term_id_handler(Request, Role) :-
+  rest_method(Request, term_id_method(Request, Role)).
 
 % /term/id: GET,HEAD
-term_id_method(Request, Goal_2, Key, Method, MediaTypes) :-
+term_id_method(Request, Role, Method, MediaTypes) :-
   http_is_get(Method),
   http_parameters(
     Request,
-    [graph(G),page(PageNumber),page_size(PageSize),prefix(Prefix),rnd(_Rnd)],
+    [graph(G),page(PageNumber),page_size(PageSize),prefix(Prefix),rnd(Rnd)],
     [attribute_declarations(http_param)]
   ),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  (hdt_graph(Hdt, G) -> true ; existence_error(hdt_graph, G)),
   Options = _{
     graph: G,
     page_number: PageNumber,
     page_size: PageSize,
     uri: Uri
   },
-  (   ground(Prefix)
-  ->  key_role_(Key, Role),
-      pagination_bulk(
-        hdt_suggestions(Hdt, Prefix, Role, PageSize),
-        Options,
-        Page
-      )
-  ;   pagination(
-        Term,
-        call(Goal_2, Hdt, Term),
-        {Key,G}/[N]>>rdf_statistic(hdt, Key, N, G),
-        Options,
-        Page
-      )
+  pagination(
+    Id,
+    hdt_term_id_(Role, Prefix, Rnd, G, Id),
+    hdt_term_count_(Role, Prefix, G),
+    Options,
+    Page
   ),
-  rest_media_type(MediaTypes, term_id_media_type(Key, G, Page)).
+  rest_media_type(MediaTypes, term_id_media_type(Role, G, Page)).
+
+hdt_term_id_(Role, Prefix, Rnd, G, Id) :-
+  var(Prefix), !,
+  (   Rnd == false
+  ->  hdt_term_id(Role, Id, G)
+  ;   hdt_term_rnd_id(Role, Id, G)
+  ).
+hdt_term_id_(Role, Prefix, Rnd, G, Id) :-
+  (   Rnd == false
+  ->  hdt_prefix_id(Role, Prefix, Id, G)
+  ;   hdt_prefix_rnd_id(Role, Prefix, Id, G)
+  ).
 
 % /term/id: GET,HEAD: application/json
 term_id_media_type(_, _, Page, media(application/json,_)) :-
   http_pagination_json(Page).
 % /term/id: GET,HEAD: text/html
-term_id_media_type(Key, G, Page, media(text/html,_)) :-
+term_id_media_type(Role, G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
-  atom_capitalize(Key, CKey),
-  html_page(hdt(Page,[CKey]), [],
-            [\html_pagination_result(Page, term_id_table(G))]).
+  atom_capitalize(Role, CRole),
+  html_page(
+    hdt(Page,[CRole]),
+    [],
+    [\html_pagination_result(Page, term_id_table(G))]
+  ).
 
 term_id_table(G, Ids) -->
   html(ul(\html_maplist(term_id_row(G), Ids))).
@@ -436,19 +443,19 @@ term_id_table(G, Ids) -->
 term_id_row(G, Id) -->
   {
     (rdf_equal(graph:default, G) -> Query = [] ; Query = [graph(G)]),
-    http_link_to_id(triple_id_handler, [subject(Id)|Query], UriS),
-    http_link_to_id(triple_id_handler, [predicate(Id)|Query], UriP),
-    http_link_to_id(triple_id_handler, [object(Id)|Query], UriO)
+    http_link_to_id(triple_id_handler, [subject(Id)|Query], SUri),
+    http_link_to_id(triple_id_handler, [predicate(Id)|Query], PUri),
+    http_link_to_id(triple_id_handler, [object(Id)|Query], OUri)
   },
   html(
     li([
       Id,
       " ",
-      a(href=UriS, "(s)"),
+      a(href=SUri, "(s)"),
       " ",
-      a(href=UriP, "(p)"),
+      a(href=PUri, "(p)"),
       " ",
-      a(href=UriO, "(o)")
+      a(href=OUri, "(o)")
     ])
   ).
 
@@ -465,25 +472,29 @@ triple_method(Request, Method, MediaTypes) :-
     Request,
     [
       graph(G),
-      object(O1),
+      object(O),
       page(PageNumber),
       page_size(PageSize),
-      predicate(P1),
-      subject(S1)
+      predicate(P),
+      subject(S)
     ],
     [attribute_declarations(http_param)]
   ),
-  maplist(term_arg_, [S1,P1,O1], [S2,P2,O2]),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  include(ground, [object(O1),predicate(P1),subject(S1)], Query),
-  (hdt_graph(Hdt, G) -> true ; existence_error(hdt_graph, G)),
+  include(ground, [object(O),predicate(P),subject(S)], Query),
+  maplist(
+    to_term_(G),
+    [subject,predicate,object],
+    [S,P,O],
+    [STerm,PTerm,OTerm]
+  ),
   pagination(
-    rdf(S2,P2,O2),
+    rdf(STerm,PTerm,OTerm),
     % HACK: In LL12 we did not clean literals based on their datatype
     %       IRI, e.g., gYear',"1996-01-01T00:00:00-04:00"
-    catch(hdt_search(Hdt, S2, P2, O2), _E, fail),
-    hdt_search_cost(Hdt, S2, P2, O2),
+    catch(hdt(STerm, PTerm, OTerm, G), _, fail),
+    {STerm,PTerm,OTerm,G}/[Count]>>hdt_count(STerm, PTerm, OTerm, Count, G),
     _{
       page_number: PageNumber,
       page_size: PageSize,
@@ -494,10 +505,12 @@ triple_method(Request, Method, MediaTypes) :-
   ),
   rest_media_type(MediaTypes, triple_media_type(G, Page)).
 
-term_arg_(X, X) :-
+to_term_(_, _, X, X) :-
   var(X), !.
-term_arg_(Atom, Term) :-
-  rdf_atom_to_term(Atom, Term).
+to_term_(G, Role, Id, Term) :-
+  integer(Id), !,
+  hdt_dict(Role, Term, Id, G).
+to_term_(_, _, Term, Term).
 
 % /triple: GET,HEAD: application/n-triples
 triple_media_type(_, Page, media(application/'n-triples',_)) :-
@@ -509,8 +522,11 @@ triple_media_type(_, Page, media(application/'n-triples',_)) :-
 triple_media_type(G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
   rdf_global_id(graph:GLocal, G),
-  html_page(hdt(Page,["Triples",GLocal]), [],
-            [\html_pagination_result(Page, rdf_html_triple_table(Page.uri, G))]).
+  html_page(
+    hdt(Page,["Triples",GLocal]),
+    [],
+    [\html_pagination_result(Page, rdf_html_triple_table(Page.uri, G))]
+  ).
 
 
 
@@ -523,20 +539,18 @@ triple_count_method(Request, Method, MediaTypes) :-
   http_is_get(Method),
   http_parameters(
     Request,
-    [graph(G),object(O1),predicate(P1),subject(S1)],
+    [graph(G),object(O),predicate(P),subject(S)],
     [attribute_declarations(http_param)]
   ),
-  (hdt_graph(Hdt, G) -> true ; existence_error(hdt_graph, G)),
-  maplist(term_arg_, [S1,P1,O1], [S2,P2,O2]),
-  hdt_search_cost(Hdt, S2, P2, O2, Cost),
-  rest_media_type(MediaTypes, triple_count_media_type(Cost)).
+  hdt_count(S, P, O, Count, G),
+  rest_media_type(MediaTypes, triple_count_media_type(Count)).
 
 % /triple/count: GET,HEAD: application/json
-triple_count_media_type(Cost, media(application/json,_)) :-
-  http_reply_json(Cost).
+triple_count_media_type(Count, media(application/json,_)) :-
+  http_reply_json(Count).
 % /triple/count: GET,HEAD: text/html
-triple_count_media_type(Cost, media(text/html,_)) :-
-  html_page(hdt(_,["Triples","Count"]), [], [\html_thousands(Cost)]).
+triple_count_media_type(Count, media(text/html,_)) :-
+  html_page(hdt(_,["Triples","Count"]), [], [\html_thousands(Count)]).
 
 
 
@@ -551,23 +565,22 @@ triple_id_method(Request, Method, MediaTypes) :-
     Request,
     [
       graph(G),
-      object(O1),
+      object(O),
       page(PageNumber),
       page_size(PageSize),
-      predicate(P1),
-      subject(S1)
+      predicate(P),
+      subject(S)
     ],
     [attribute_declarations(http_param)]
   ),
-  maplist(id_arg_, [S1,P1,O1], [S2,P2,O2]),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  (hdt_graph(Hdt, G) -> true ; existence_error(hdt_graph, G)),
-  include(ground, [object(O1),predicate(P1),subject(S1)], Query),
+  include(ground, [object(O),predicate(P),subject(S)], Query),
+  maplist(to_id_(G), [subject,predicate,object], [S,P,O], [SId,PId,OId]),
   pagination(
-    rdf(S2,P2,O2),
-    hdt_search_id(Hdt, S2, P2, O2),
-    hdt:hdt_search_cost_id(Hdt, S2, P2, O2),
+    rdf(SId,PId,OId),
+    hdt_id(SId, PId, OId, G),
+    {SId,PId,OId,G}/[Count]>>hdt_count_id(SId, PId, OId, Count, G),
     _{
       page_number: PageNumber,
       page_size: PageSize,
@@ -578,11 +591,12 @@ triple_id_method(Request, Method, MediaTypes) :-
   ),
   rest_media_type(MediaTypes, triple_id_media_type(G, Page)).
 
-id_arg_(X, X) :-
+to_id_(_, _, X, X) :-
   var(X), !.
-id_arg_(Atom, N) :-
-  atom_number(Atom, N),
-  must_be(positive_integer, N).
+to_id_(_, _, Id, Id) :-
+  integer(Id), !.
+to_id_(G, Role, Term, Id) :-
+  hdt_dict(Role, Term, Id, G).
 
 % /triple/id: GET,HEAD: GML
 triple_id_media_type(_, Page, media(application/gml,_)) :-
@@ -597,14 +611,17 @@ triple_id_media_type(_, Page, media(application/json,_)) :-
 triple_id_media_type(G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
   rdf_global_id(graph:GLocal, G),
-  html_page(hdt(Page,["Triples","Identifiers",GLocal]), [],
-            [\html_pagination_result(Page, hdt_id_table(Page.uri, G))]).
+  html_page(
+    hdt(Page,["Triples","Identifiers",GLocal]),
+    [],
+    [\html_pagination_result(Page, hdt_id_table(Page.uri, G))]
+  ).
 
 write_gml_triples(Triples) :-
   maplist(write_gml_triple, Triples).
 
-write_gml_triple(rdf(S,P,O)) :-
-  format("edge [ label ~a source ~a target ~a ]\n", [P,S,O]).
+write_gml_triple(rdf(SId,PId,OId)) :-
+  format("edge [ label ~a source ~a target ~a ]\n", [PId,SId,OId]).
 
 hdt_id_table(Uri, G, Triples) -->
   table(
@@ -612,20 +629,20 @@ hdt_id_table(Uri, G, Triples) -->
     \html_maplist(hdt_id_table_row(Uri, G), Triples)
   ).
 
-hdt_id_table_row(Uri, G, rdf(S,P,O)) -->
+hdt_id_table_row(Uri, G, rdf(SId,PId,OId)) -->
   {
     (var(G) -> Query = [id(true)] ; Query = [graph(G),id(true)]),
     maplist(
       uri_comp_set(query, Uri),
-      [[subject(S)|Query],[predicate(P)|Query],[object(O)|Query]],
-      [UriS,UriP,UriO]
+      [[subject(SId)|Query],[predicate(PId)|Query],[object(OId)|Query]],
+      [SUri,PUri,OUri]
     )
   },
   html(
     tr([
-      td(a(href=UriS, S)),
-      td(a(href=UriP, P)),
-      td(a(href=UriO, O))
+      td(a(href=SUri, SId)),
+      td(a(href=PUri, PId)),
+      td(a(href=OUri, OId))
     ])
   ).
 
@@ -701,8 +718,8 @@ http_param(id, [
   description("Return HDT identifiers i.o. RDF terms.")
 ]).
 http_param(object, [
-  atom,
-  description("Filter results with this object term."),
+  hdt_term,
+  description("Filter results with this object term or identifier."),
   optional(true)
 ]).
 http_param(page, [
@@ -718,8 +735,8 @@ http_param(page_size, [
   setting(pagination:default_page_size, DefaultPageSize),
   setting(pagination:maximum_page_size, MaxPageSize).
 http_param(predicate, [
-  atom,
-  description("Filter results with this predicate term."),
+  hdt_term,
+  description("Filter results with this predicate term or identifier."),
   optional(true)
 ]).
 http_param(prefix, [
@@ -733,8 +750,8 @@ http_param(rnd, [
   description("Retrieve a randomly chosen triple.  Default is `false'.")
 ]).
 http_param(subject, [
-  atom,
-  description("Filter results with this subject term."),
+  hdt_term,
+  description("Filter results with this subject term or identifier."),
   optional(true)
 ]).
 
