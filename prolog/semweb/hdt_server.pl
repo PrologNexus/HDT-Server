@@ -31,14 +31,15 @@
     html:menu_item/2,
     html:menu_item/3.
 
-http:convert_parameter(hdt_term, X, X) :-
-  var(X), !.
-http:convert_parameter(hdt_term, In, Out) :-
-  atom_number(In, Out), !.
-http:convert_parameter(hdt_term, In, Out) :-
-  atom_to_term(In, Out).
+http:convert_parameter(hdt_term, Var, Var) :-
+  var(Var), !.
+http:convert_parameter(hdt_term, Atom, N) :-
+  atom_number(Atom, N), !,
+  must_be(positive_integer, N).
+http:convert_parameter(hdt_term, Atom, Term) :-
+  rdf_atom_to_term(Atom, Term).
 
-:- http_handler(/, hdt_handler, [methods([get,head,options]),priority(-1)]).
+:- http_handler(/, hdt_handler, [methods([get,head,options])]).
 :- http_handler(root(doc), doc_handler, [methods([get,head,options])]).
 :- http_handler(root(graph), graph_handler, [methods([get,head,options])]).
 :- http_handler(root(node), node_handler, [methods([get,head,options])]).
@@ -76,6 +77,8 @@ http:convert_parameter(hdt_term, In, Out) :-
     html:handler_description/2,
     html:menu_item/2,
     html:menu_item/3,
+    html_doc:custom_param_type//3,
+    http:status_page/3,
     user:body//2,
     user:head//2.
 
@@ -95,8 +98,8 @@ html:menu_item(term, "Terms").
   html:menu_item(term, shared_handler, "Shared").
   html:menu_item(term, subject_handler, "Subjects").
 html:menu_item(term_id, "Term IDs").
-  html:menu_item(term_id, object_id_handler, "Node IDs").
   html:menu_item(term_id, node_id_handler, "Object IDs").
+  html:menu_item(term_id, object_id_handler, "Node IDs").
   html:menu_item(term_id, predicate_id_handler, "Predicate IDs").
   html:menu_item(term_id, shared_id_handler, "Shared IDs").
   html:menu_item(term_id, subject_id_handler, "Subject IDs").
@@ -104,9 +107,43 @@ html:menu_item(triple, "Triples").
   html:menu_item(triple, triple_handler, "Triples").
   html:menu_item(triple, triple_id_handler, "Triples IDs").
 
+html_doc:custom_param_type(Spec) -->
+  {memberchk(hdt_term, Spec)},
+  html("HDT term (RDF term or positive integer)").
+
+http:status_page(not_found(Uri), _Context, Dom) :-
+  phrase(
+    page(
+      hdt(_,["Path Not Found",Uri]),
+      [],
+      [
+        h1(["Path Not Found: ",code(Uri)]),
+        p(a(href='/',"Return to root"))
+      ]
+    ),
+    Dom
+  ).
+
 :- set_setting(http:products, ['HDT-Server'-'v0.0.1']).
 
 
+
+
+
+% 404
+'404_handler'(Request) :-
+  rest_method(Request, '404_method').
+
+'404_method'(Method, MediaTypes) :-
+  http_is_get(Method),
+  rest_media_type(MediaTypes, '404_media_type').
+
+'404_media_type'(media(text/html,_)) :-
+  html_page(
+    hdt(_,[]),
+    [],
+    ["404"]
+  ).
 
 
 
@@ -309,17 +346,12 @@ hdt_term_(Role, Prefix, Rnd, G, Term) :-
   ->  hdt_term(Role, Term, G)
   ;   hdt_term_rnd(Role, Term, G)
   ).
-hdt_term_(Role, Prefix, Rnd, G, Term) :-
-  (   Rnd == false
-  ->  hdt_prefix(Role, Prefix, Term, G)
-  ;   hdt_prefix_rnd(Role, Prefix, Term, G)
-  ).
+hdt_term_(Role, Prefix, _, G, Term) :-
+  hdt_prefix(Role, Prefix, Term, G).
 
 hdt_term_count_(Role, Prefix, G, Count) :-
   var(Prefix), !,
   hdt_term_count(Role, Count, G).
-hdt_term_count_(Role, Prefix, G, Count) :-
-  hdt_prefix_count(Role, Prefix, Count, G).
 
 % /term: GET,HEAD: application/json
 term_media_type(_, _, Page, media(application/json,_)) :-
@@ -418,11 +450,8 @@ hdt_term_id_(Role, Prefix, Rnd, G, Id) :-
   ->  hdt_term_id(Role, Id, G)
   ;   hdt_term_rnd_id(Role, Id, G)
   ).
-hdt_term_id_(Role, Prefix, Rnd, G, Id) :-
-  (   Rnd == false
-  ->  hdt_prefix_id(Role, Prefix, Id, G)
-  ;   hdt_prefix_rnd_id(Role, Prefix, Id, G)
-  ).
+hdt_term_id_(Role, Prefix, _, G, Id) :-
+  hdt_prefix_id(Role, Prefix, Id, G).
 
 % /term/id: GET,HEAD: application/json
 term_id_media_type(_, _, Page, media(application/json,_)) :-
