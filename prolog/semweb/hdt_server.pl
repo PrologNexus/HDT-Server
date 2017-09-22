@@ -39,27 +39,60 @@ http:convert_parameter(hdt_term, Atom, N) :-
 http:convert_parameter(hdt_term, Atom, Term) :-
   rdf_atom_to_term(Atom, Term).
 
-:- http_handler(/, hdt_handler, [methods([get,head,options])]).
-:- http_handler(root(doc), doc_handler, [methods([get,head,options])]).
-:- http_handler(root(graph), graph_handler, [methods([get,head,options])]).
-:- http_handler(root(node), node_handler, [methods([get,head,options])]).
-:- http_handler(root(node/count), node_count_handler, [methods([get,head,options])]).
-:- http_handler(root(node/id), node_id_handler, [methods([get,head,options])]).
-:- http_handler(root(object), object_handler, [methods([get,head,options])]).
-:- http_handler(root(object/count), object_count_handler, [methods([get,head,options])]).
-:- http_handler(root(object/id), object_id_handler, [methods([get,head,options])]).
-:- http_handler(root(predicate), predicate_handler, [methods([get,head,options])]).
-:- http_handler(root(predicate/count), predicate_count_handler, [methods([get,head,options])]).
-:- http_handler(root(predicate/id), predicate_id_handler, [methods([get,head,options])]).
-:- http_handler(root(shared), shared_handler, [methods([get,head,options])]).
-:- http_handler(root(shared/count), shared_count_handler, [methods([get,head,options])]).
-:- http_handler(root(shared/id), shared_id_handler, [methods([get,head,options])]).
-:- http_handler(root(subject), subject_handler, [methods([get,head,options])]).
-:- http_handler(root(subject/count), subject_count_handler, [methods([get,head,options])]).
-:- http_handler(root(subject/id), subject_id_handler, [methods([get,head,options])]).
-:- http_handler(root(triple), triple_handler, [methods([get,head,options])]).
-:- http_handler(root(triple/count), triple_count_handler, [methods([get,head,options])]).
-:- http_handler(root(triple/id), triple_id_handler, [methods([get,head,options])]).
+:- http_handler(/, hdt_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(doc), doc_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(graph), graph_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(node), node_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(node/count), node_count_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(node/id), node_id_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(object), object_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(object/count), object_count_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(object/id), object_id_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(predicate), predicate_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(predicate/count), predicate_count_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(predicate/id), predicate_id_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(shared), shared_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(shared/count), shared_count_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(shared/id), shared_id_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(sink), sink_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(sink/count), sink_count_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(sink/id), sink_id_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(source), source_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(source/count), source_count_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(source/id), source_id_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(subject), subject_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(subject/count), subject_count_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(subject/id), subject_id_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(triple), triple_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(triple/count), triple_count_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(triple/id), triple_id_handler,
+                [methods([get,head,options])]).
 
 :- initialization
    conf_json(Dict1),
@@ -86,7 +119,9 @@ html:handler_description(graph_handler, "Graphs").
 html:handler_description(node_handler, "Nodes").
 html:handler_description(object_handler, "Objects").
 html:handler_description(predicate_handler, "Predicates").
-html:handler_description(shared_handler, "Shared terms").
+html:handler_description(shared_handler, "Shared nodes").
+html:handler_description(sink_handler, "Sinks").
+html:handler_description(source_handler, "Sources").
 html:handler_description(subject_handler, "Subjects").
 html:handler_description(triple_handler, "Triples").
 
@@ -95,13 +130,17 @@ html:menu_item(term, "Terms").
   html:menu_item(term, node_handler, "Nodes").
   html:menu_item(term, object_handler, "Objects").
   html:menu_item(term, predicate_handler, "Predicates").
-  html:menu_item(term, shared_handler, "Shared").
+  html:menu_item(term, shared_handler, "Shared nodes").
+  html:menu_item(term, sink_handler, "Sinks").
+  html:menu_item(term, source_handler, "Sources").
   html:menu_item(term, subject_handler, "Subjects").
 html:menu_item(term_id, "Term IDs").
   html:menu_item(term_id, node_id_handler, "Object IDs").
   html:menu_item(term_id, object_id_handler, "Node IDs").
   html:menu_item(term_id, predicate_id_handler, "Predicate IDs").
   html:menu_item(term_id, shared_id_handler, "Shared IDs").
+  html:menu_item(term_id, sink_id_handler, "Sink IDs").
+  html:menu_item(term_id, source_id_handler, "Source IDs").
   html:menu_item(term_id, subject_id_handler, "Subject IDs").
 html:menu_item(triple, "Triples").
   html:menu_item(triple, triple_handler, "Triples").
@@ -175,6 +214,12 @@ hdt_media_type(media(text/html,_)) :-
       \http_doc_handler(hdt_server, shared_handler),
       \http_doc_handler(hdt_server, shared_count_handler),
       \http_doc_handler(hdt_server, shared_id_handler),
+      \http_doc_handler(hdt_server, sink_handler),
+      \http_doc_handler(hdt_server, sink_count_handler),
+      \http_doc_handler(hdt_server, sink_id_handler),
+      \http_doc_handler(hdt_server, source_handler),
+      \http_doc_handler(hdt_server, source_count_handler),
+      \http_doc_handler(hdt_server, source_id_handler),
       \http_doc_handler(hdt_server, subject_handler),
       \http_doc_handler(hdt_server, subject_count_handler),
       \http_doc_handler(hdt_server, subject_id_handler),
@@ -234,77 +279,69 @@ graph_row(G) -->
 % /node
 node_handler(Request) :-
   term_handler(Request, node).
-
-
 % /node/count
 node_count_handler(Request) :-
   term_count_handler(Request, node).
-
-
 % /node/id
 node_id_handler(Request) :-
   term_id_handler(Request, node).
 
-
-
 % /object
 object_handler(Request) :-
   term_handler(Request, object).
-
-
 % /object/count
 object_count_handler(Request) :-
   term_count_handler(Request, object).
-
-
 % /object/id
 object_id_handler(Request) :-
   term_id_handler(Request, object).
 
-
-
 % /predicate
 predicate_handler(Request) :-
   term_handler(Request, predicate).
-
-
 % /predicate/count
 predicate_count_handler(Request) :-
   term_count_handler(Request, predicate).
-
-
 % /predicate/id
 predicate_id_handler(Request) :-
   term_id_handler(Request, predicate).
 
-
-
 % /shared
 shared_handler(Request) :-
   term_handler(Request, shared).
-
-
 % /shared/count
 shared_count_handler(Request) :-
   term_count_handler(Request, shared).
-
-
 % /shared/id
 shared_id_handler(Request) :-
   term_id_handler(Request, shared).
 
+% /sink
+sink_handler(Request) :-
+  term_handler(Request, sink).
+% /sink/count
+sink_count_handler(Request) :-
+  term_count_handler(Request, sink).
+% /sink/id
+sink_id_handler(Request) :-
+  term_id_handler(Request, sink).
 
+% /source
+source_handler(Request) :-
+  term_handler(Request, source).
+% /source/count
+source_count_handler(Request) :-
+  term_count_handler(Request, source).
+% /source/id
+source_id_handler(Request) :-
+  term_id_handler(Request, source).
 
 % /subject
 subject_handler(Request) :-
   term_handler(Request, subject).
-
-
 % /subject/count
 subject_count_handler(Request) :-
   term_count_handler(Request, subject).
-
-
 % /subject/id
 subject_id_handler(Request) :-
   term_id_handler(Request, subject).
@@ -447,11 +484,11 @@ term_id_method(Request, Role, Method, MediaTypes) :-
 hdt_term_id_(Role, Prefix, Rnd, G, Id) :-
   var(Prefix), !,
   (   Rnd == false
-  ->  hdt_term_id(Role, Id, G)
-  ;   hdt_term_rnd_id(Role, Id, G)
+  ->  hdt_term_id(id(Role,Id), G)
+  ;   hdt_term_rnd_id(id(Role,Id), G)
   ).
 hdt_term_id_(Role, Prefix, _, G, Id) :-
-  hdt_prefix_id(Role, Prefix, Id, G).
+  hdt_prefix_id(Prefix, id(Role,Id), G).
 
 % /term/id: GET,HEAD: application/json
 term_id_media_type(_, _, Page, media(application/json,_)) :-
@@ -538,7 +575,7 @@ to_term_(_, _, X, X) :-
   var(X), !.
 to_term_(G, Role, Id, Term) :-
   integer(Id), !,
-  hdt_dict(Role, Term, Id, G).
+  hdt_dict(Term, id(Role,Id), G).
 to_term_(_, _, Term, Term).
 
 % /triple: GET,HEAD: application/n-triples
@@ -625,7 +662,7 @@ to_id_(_, _, X, X) :-
 to_id_(_, _, Id, Id) :-
   integer(Id), !.
 to_id_(G, Role, Term, Id) :-
-  hdt_dict(Role, Term, Id, G).
+  hdt_dict(Term, id(Role,Id), G).
 
 % /triple/id: GET,HEAD: GML
 triple_id_media_type(_, Page, media(application/gml,_)) :-
@@ -708,6 +745,18 @@ http_media_types(shared_handler, [media(application/json,[]),
 http_media_types(shared_count_handler, [media(application/json,[]),
                                         media(text/html,[])]).
 http_media_types(shared_id_handler, [media(application/json,[]),
+                                     media(text/html,[])]).
+http_media_types(sink_handler, [media(application/json,[]),
+                                media(text/html,[])]).
+http_media_types(sink_count_handler, [media(application/json,[]),
+                                      media(text/html,[])]).
+http_media_types(sink_id_handler, [media(application/json,[]),
+                                   media(text/html,[])]).
+http_media_types(source_handler, [media(application/json,[]),
+                                  media(text/html,[])]).
+http_media_types(source_count_handler, [media(application/json,[]),
+                                        media(text/html,[])]).
+http_media_types(source_id_handler, [media(application/json,[]),
                                      media(text/html,[])]).
 http_media_types(subject_handler, [media(application/json,[]),
                                    media(text/html,[])]).
@@ -799,6 +848,12 @@ http_params(predicate_id_handler, [graph,page,page_size,prefix,rnd]).
 http_params(shared_handler, [graph,page,page_size,prefix,rnd]).
 http_params(shared_count_handler, [graph]).
 http_params(shared_id_handler, [graph,page,page_size,prefix,rnd]).
+http_params(sink_handler, [graph,page,page_size,prefix,rnd]).
+http_params(sink_count_handler, [graph]).
+http_params(sink_id_handler, [graph,page,page_size,prefix,rnd]).
+http_params(source_handler, [graph,page,page_size,prefix,rnd]).
+http_params(source_count_handler, [graph]).
+http_params(source_id_handler, [graph,page,page_size,prefix,rnd]).
 http_params(subject_handler, [graph,page,page_size,prefix,rnd]).
 http_params(subject_count_handler, [graph]).
 http_params(subject_id_handler, [graph,page,page_size,prefix,rnd]).
