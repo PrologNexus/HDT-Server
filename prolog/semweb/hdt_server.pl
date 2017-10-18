@@ -1,4 +1,5 @@
 :- module(hdt_server, []).
+:- reexport(library(hdt_db)).
 
 /** <module> HDT server
 
@@ -511,6 +512,7 @@ triple_method(Request, Method, MediaTypes) :-
       page(PageNumber),
       page_size(PageSize),
       predicate(PAtom),
+      rnd(Rnd),
       subject(SAtom)
     ],
     [attribute_declarations(http_param)]
@@ -527,8 +529,8 @@ triple_method(Request, Method, MediaTypes) :-
   ),
   pagination(
     rdf(S,P,O),
-    hdt_triple(Hdt, S, P, O),
-    hdt_triple_count(Hdt, S, P, O),
+    hdt_triple_(Hdt, Rnd, S, P, O),
+    hdt_triple_count_(Hdt, Rnd, S, P, O),
     _{
       page_number: PageNumber,
       page_size: PageSize,
@@ -597,6 +599,7 @@ triple_id_method(Request, Method, MediaTypes) :-
       page(PageNumber),
       page_size(PageSize),
       predicate(PAtom),
+      rnd(Rnd),
       subject(SAtom)
     ],
     [attribute_declarations(http_param)]
@@ -613,8 +616,8 @@ triple_id_method(Request, Method, MediaTypes) :-
   ),
   pagination(
     IdTriple,
-    hdt_triple_id_(Hdt, S, P, O, IdTriple),
-    hdt_triple_count(Hdt, S, P, O),
+    hdt_triple_id_(Hdt, Rnd, S, P, O, IdTriple),
+    hdt_triple_count_(Hdt, Rnd, S, P, O),
     _{
       page_number: PageNumber,
       page_size: PageSize,
@@ -691,7 +694,7 @@ arg_to_term_(Hdt, Role, Atom, Term) :-
   atom_number(Atom, Id), !,
   hdt_term_translate(Hdt, Role, Term, Id).
 arg_to_term_(_, _, Atom, Term) :-
-  rdf_atom_to_term(Atom, Term).
+  hdt_atom_to_term(Atom, Term).
 
 
 
@@ -706,7 +709,6 @@ hdt_graphs_(Gs) :-
 %!           -LeafRole:atom, -Term:compound) is nondet.
 
 hdt_term_(Hdt, Role, Prefix, Rnd, LeafRole, Term) :-
-  gtrace,
   (   ground(Prefix)
   ->  hdt_term_prefix(Hdt, Role, Prefix, LeafRole, Term)
   ;   Rnd == false
@@ -733,10 +735,31 @@ hdt_term_id_(Hdt, Role, Prefix, Rnd, id(LeafRole,Id)) :-
 
 
 
-%! hdt_triple_id_(+Hdt:blob, ?S, ?P, ?O, -IdTriple:compound) is det.
+%! hdt_triple_(+Hdt:blob, +Rnd:boolean, ?S, ?P, ?O) is nondet.
 
-hdt_triple_id_(Hdt, S, P, O, IdTriple) :-
+hdt_triple_(Hdt, false, S, P, O) :- !,
+  hdt_triple(Hdt, S, P, O).
+hdt_triple_(Hdt, true, S, P, O) :-
+  hdt_triple_random(Hdt, S, P, O).
+
+
+
+%! hdt_triple_count_(+Hdt:blob, +Rnd:boolean, ?S, ?P, ?O, -N:nonneg) is nondet.
+
+hdt_triple_count_(Hdt, false, S, P, O, N) :- !,
+  hdt_triple_count(Hdt, S, P, O, N).
+hdt_triple_count_(_, true, _, _, _, 1).
+
+
+
+%! hdt_triple_id_(+Hdt:blob, +Rnd:boolean, ?S, ?P, ?O,
+%!                -IdTriple:compound) is det.
+
+hdt_triple_id_(Hdt, false, S, P, O, IdTriple) :- !,
   hdt_triple(Hdt, S, P, O),
+  hdt_triple_translate(Hdt, rdf(S,P,O), IdTriple).
+hdt_triple_id_(Hdt, true, S, P, O, IdTriple) :-
+  hdt_triple_random(Hdt, S, P, O),
   hdt_triple_translate(Hdt, rdf(S,P,O), IdTriple).
 
 

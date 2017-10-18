@@ -1,6 +1,8 @@
 #+TITLE: HDT-Server
 #+AUTHOR: Wouter Beek
 
-* TODO Do HDT identifiers start at 0 or at 1?
-Type ~nonneg~ or ~positive_integer~.
-* TODO Add type ~term~ to ~http_parameters/2~.
+* Startup
+
+#+BEGIN_SRC sh
+$ swipl run.pl --port=<PORT> --no-fork --conf=conf.json
+#+END_SRC
