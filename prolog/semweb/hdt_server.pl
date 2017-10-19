@@ -153,7 +153,7 @@ http:status_page(not_found(Uri), _Context, Dom) :-
     Dom
   ).
 
-:- set_setting(http:products, ['HDT-Server'-'v0.0.1']).
+:- set_setting(http:products, ['HDT-Server'-'v0.0.2']).
 
 
 
@@ -779,8 +779,11 @@ arg_to_term_(_, _, a, Term) :- !,
 % Expansion of commonly used prefixes.
 arg_to_term_(_, _, Atom1, Term) :-
   atomic_list_concat([Prefix,Local], :, Atom1),
-  rdf_global_id(Prefix:Local, Atom2),
+  rdf_global_id(Prefix:Local, Atom2), !,
   hdt_atom_to_term(Atom2, Term).
+arg_to_term_(_, _, Atom, _) :-
+  throw(error(type_error(rdf_term,Atom))).
+
 
 
 %! hdt_graphs_(-Gs:ordset(atom)) is det.
