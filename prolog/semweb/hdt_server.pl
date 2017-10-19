@@ -688,14 +688,27 @@ id_query_(id(Role,Id), Query) :-
 
 %! arg_to_term_(+Hdt:blob, +Role:atom, +Atom:atom, -Term) is det.
 
+% variable
 arg_to_term_(_, _, X, X) :-
   var(X), !.
+% HDT ID → RDF term
 arg_to_term_(Hdt, Role, Atom, Term) :-
   atom_number(Atom, Id), !,
   hdt_term_translate(Hdt, Role, Term, Id).
+% HDT atom → RDF term
 arg_to_term_(_, _, Atom, Term) :-
+  % Make sure this is an HDT atom.
+  sub_atom(Atom, 0, 1, _, First),
+  memberchk(First, ['"','<','_']), !,
   hdt_atom_to_term(Atom, Term).
-
+% a
+arg_to_term_(_, _, a, Term) :- !,
+  rdf_equal(rdf:type, Term).
+% Expansion of commonly used prefixes.
+arg_to_term_(_, _, Atom1, Term) :-
+  atomic_list_concat([Prefix,Local], :, Atom1),
+  rdf_global_id(Prefix:Local, Atom2),
+  hdt_atom_to_term(Atom2, Term).
 
 
 %! hdt_graphs_(-Gs:ordset(atom)) is det.
@@ -934,7 +947,7 @@ user:head(hdt(Page,Subtitles), Content_0) -->
   ).
 
 user:body(hdt(_,_), Content_0) -->
-  html(body([\navbar(\brand, \menu, \krr)|Content_0])).
+  html(body([\navbar(\brand, \menu, "")|Content_0])).
 /* ToC https://github.com/afeld/bootstrap-toc
   html(
     body(
@@ -951,7 +964,7 @@ user:body(hdt(_,_), Content_0) -->
           src='https://cdn.rawgit.com/afeld/bootstrap-toc/v0.4.1/dist/bootstrap-toc.min.js',
           []
         ),
-        \navbar(\brand, \menu, \krr),
+        \navbar(\brand, \menu, ""),
         nav(['data-toggle'(toc),id(toc)], [])
       | Content_0
       ]
@@ -961,7 +974,3 @@ user:body(hdt(_,_), Content_0) -->
 
 brand -->
   html("HDT-Server").
-
-krr -->
-  {http_absolute_location(img('krr.svg'), Image)},
-  html(a(href='http://krr.cs.vu.nl', img(src=Image, []))).
