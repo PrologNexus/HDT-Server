@@ -347,11 +347,19 @@ term_method(Request, Role, Method, MediaTypes) :-
   http_is_get(Method),
   http_parameters(
     Request,
-    [graph(G),page(PageNumber),page_size(PageSize),prefix(Prefix),rnd(Rnd)],
+    [
+      g(G2),
+      graph(G1),
+      page(PageNumber),
+      page_size(PageSize),
+      prefix(Prefix),
+      rnd(Rnd)
+    ],
     [attribute_declarations(http_param)]
   ),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
+  alt_atom_(G1, G2, G),
   hdt_graph(Hdt, G),
   pagination(
     Term,
@@ -420,9 +428,10 @@ term_count_method(Request, Role, Method, MediaTypes) :-
   http_is_get(Method),
   http_parameters(
     Request,
-    [graph(G)],
+    [g(G2),graph(G1)],
     [attribute_declarations(http_param)]
   ),
+  alt_atom_(G1, G2, G),
   hdt_graph(Hdt, G),
   hdt_term_count(Hdt, Role, Count),
   rest_media_type(MediaTypes, term_count_media_type(Role, Count)).
@@ -446,11 +455,19 @@ term_id_method(Request, Role, Method, MediaTypes) :-
   http_is_get(Method),
   http_parameters(
     Request,
-    [graph(G),page(PageNumber),page_size(PageSize),prefix(Prefix),rnd(Rnd)],
+    [
+      g(G2),
+      graph(G1),
+      page(PageNumber),
+      page_size(PageSize),
+      prefix(Prefix),
+      rnd(Rnd)
+    ],
     [attribute_declarations(http_param)]
   ),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
+  alt_atom_(G1, G2, G),
   hdt_graph(Hdt, G),
   pagination(
     Id,
@@ -507,19 +524,29 @@ triple_method(Request, Method, MediaTypes) :-
   http_parameters(
     Request,
     [
-      graph(G),
-      object(OAtom),
+      g(G2),
+      graph(G1),
+      o(OAtom2),
+      object(OAtom1),
       page(PageNumber),
       page_size(PageSize),
-      predicate(PAtom),
+      p(PAtom2),
+      predicate(PAtom1),
       rnd(Rnd),
-      subject(SAtom)
+      s(SAtom2),
+      subject(SAtom1)
     ],
     [attribute_declarations(http_param)]
   ),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  include(ground, [object(OAtom),predicate(PAtom),subject(SAtom)], T),
+  maplist(
+    alt_atom_,
+    [SAtom1,PAtom1,OAtom1,G1],
+    [SAtom2,PAtom2,OAtom2,G2],
+    [SAtom,PAtom,OAtom,G]
+  ),
+  include(ground, [subject(SAtom),predicate(PAtom),object(OAtom)], T),
   hdt_graph(Hdt, G),
   maplist(
     arg_to_term_(Hdt),
@@ -568,10 +595,31 @@ triple_count_method(Request, Method, MediaTypes) :-
   http_is_get(Method),
   http_parameters(
     Request,
-    [graph(G),object(O),predicate(P),subject(S)],
+    [
+      g(G2),
+      graph(G1),
+      o(OAtom2),
+      object(OAtom1),
+      p(PAtom2),
+      predicate(PAtom1),
+      s(SAtom2),
+      subject(SAtom1)
+    ],
     [attribute_declarations(http_param)]
   ),
+  maplist(
+    alt_atom_,
+    [SAtom1,PAtom1,OAtom1,G1],
+    [SAtom2,PAtom2,OAtom2,G2],
+    [SAtom,PAtom,OAtom,G]
+  ),
   hdt_graph(Hdt, G),
+  maplist(
+    arg_to_term_(Hdt),
+    [subject,predicate,object],
+    [SAtom,PAtom,OAtom],
+    [S,P,O]
+  ),
   hdt_triple_count(Hdt, S, P, O, Count),
   rest_media_type(MediaTypes, triple_count_media_type(Count)).
 
@@ -594,19 +642,29 @@ triple_id_method(Request, Method, MediaTypes) :-
   http_parameters(
     Request,
     [
-      graph(G),
-      object(OAtom),
+      g(G2),
+      graph(G1),
+      o(OAtom2),
+      object(OAtom1),
       page(PageNumber),
       page_size(PageSize),
-      predicate(PAtom),
+      p(PAtom2),
+      predicate(PAtom1),
       rnd(Rnd),
-      subject(SAtom)
+      s(SAtom2),
+      subject(SAtom1)
     ],
     [attribute_declarations(http_param)]
   ),
+  maplist(
+    alt_atom_,
+    [SAtom1,PAtom1,OAtom1,G1],
+    [SAtom2,PAtom2,OAtom2,G2],
+    [SAtom,PAtom,OAtom,G]
+  ),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  include(ground, [object(OAtom),predicate(PAtom),subject(SAtom)], T),
+  include(ground, [subject(SAtom),predicate(PAtom),object(OAtom)], T),
   hdt_graph(Hdt, G),
   maplist(
     arg_to_term_(Hdt),
@@ -685,6 +743,20 @@ id_query_(id(Role,Id), Query) :-
 
 
 % GENERICS %
+
+%! alt_atom_(?Atom1:atom, ?Atom2:atom, -Atom:atom) is det.
+%
+% Some parameters may be set in more than one way.  If this is the
+% case, then choose the primary parameter value (`Atom1') over the
+% secondary parameter value (`Atom2').
+
+alt_atom_(Atom1, _, Atom1) :-
+  atom(Atom1), !.
+alt_atom_(_, Atom2, Atom2) :-
+  atom(Atom2), !.
+alt_atom_(_, _, _).
+
+
 
 %! arg_to_term_(+Hdt:blob, +Role:atom, +Atom:atom, -Term) is det.
 
@@ -847,6 +919,8 @@ http_param(count, [
   default(false),
   description("Return the number of results.")
 ]).
+http_param(g, Options) :-
+  http_param(graph, Options).
 http_param(graph, [
   atom,
   default(G),
@@ -858,8 +932,10 @@ http_param(id, [
   default(false),
   description("Return HDT identifiers i.o. RDF terms.")
 ]).
+http_param(o, Options) :-
+  http_param(object, Options).
 http_param(object, [
-  hdt_term,
+  atom,
   description("Filter results with this object term or identifier."),
   optional(true)
 ]).
@@ -875,8 +951,10 @@ http_param(page_size, [
 ]) :-
   setting(pagination:default_page_size, DefaultPageSize),
   setting(pagination:maximum_page_size, MaxPageSize).
+http_param(p, Options) :-
+  http_param(predicate, Options).
 http_param(predicate, [
-  hdt_term,
+  atom,
   description("Filter results with this predicate term or identifier."),
   optional(true)
 ]).
@@ -890,8 +968,10 @@ http_param(rnd, [
   default(false),
   description("Retrieve a randomly chosen triple.  Default is `false'.")
 ]).
+http_param(s, Options) :-
+  http_param(subject, Options).
 http_param(subject, [
-  hdt_term,
+  atom,
   description("Filter results with this subject term or identifier."),
   optional(true)
 ]).
@@ -899,30 +979,32 @@ http_param(subject, [
 http_params(hdt_handler, []).
 http_params(doc_handler, []).
 http_params(graph_handler, [page,page_size]).
-http_params(node_handler, [graph,page,page_size,prefix,rnd]).
-http_params(node_count_handler, [graph]).
-http_params(node_id_handler, [graph,page,page_size,prefix,rnd]).
-http_params(object_handler, [graph,page,page_size,prefix,rnd]).
-http_params(object_count_handler, [graph]).
-http_params(object_id_handler, [graph,page,page_size,prefix,rnd]).
-http_params(predicate_handler, [graph,page,page_size,prefix,rnd]).
-http_params(predicate_count_handler, [graph]).
-http_params(predicate_id_handler, [graph,page,page_size,prefix,rnd]).
-http_params(shared_handler, [graph,page,page_size,prefix,rnd]).
-http_params(shared_count_handler, [graph]).
-http_params(shared_id_handler, [graph,page,page_size,prefix,rnd]).
-http_params(sink_handler, [graph,page,page_size,prefix,rnd]).
-http_params(sink_count_handler, [graph]).
-http_params(sink_id_handler, [graph,page,page_size,prefix,rnd]).
-http_params(source_handler, [graph,page,page_size,prefix,rnd]).
-http_params(source_count_handler, [graph]).
-http_params(source_id_handler, [graph,page,page_size,prefix,rnd]).
-http_params(subject_handler, [graph,page,page_size,prefix,rnd]).
-http_params(subject_count_handler, [graph]).
-http_params(subject_id_handler, [graph,page,page_size,prefix,rnd]).
-http_params(triple_handler, [graph,object,page,page_size,predicate,subject]).
-http_params(triple_count_handler, [graph,object,predicate,subject]).
-http_params(triple_id_handler, [graph,object,page,page_size,pedicate,subject]).
+http_params(node_handler, [g,graph,page,page_size,prefix,rnd]).
+http_params(node_count_handler, [g,graph]).
+http_params(node_id_handler, [g,graph,page,page_size,prefix,rnd]).
+http_params(object_handler, [g,graph,page,page_size,prefix,rnd]).
+http_params(object_count_handler, [g,graph]).
+http_params(object_id_handler, [g,graph,page,page_size,prefix,rnd]).
+http_params(predicate_handler, [g,graph,page,page_size,prefix,rnd]).
+http_params(predicate_count_handler, [g,graph]).
+http_params(predicate_id_handler, [g,graph,page,page_size,prefix,rnd]).
+http_params(shared_handler, [g,graph,page,page_size,prefix,rnd]).
+http_params(shared_count_handler, [g,graph]).
+http_params(shared_id_handler, [g,graph,page,page_size,prefix,rnd]).
+http_params(sink_handler, [g,graph,page,page_size,prefix,rnd]).
+http_params(sink_count_handler, [g,graph]).
+http_params(sink_id_handler, [g,graph,page,page_size,prefix,rnd]).
+http_params(source_handler, [g,graph,page,page_size,prefix,rnd]).
+http_params(source_count_handler, [g,graph]).
+http_params(source_id_handler, [g,graph,page,page_size,prefix,rnd]).
+http_params(subject_handler, [g,graph,page,page_size,prefix,rnd]).
+http_params(subject_count_handler, [g,graph]).
+http_params(subject_id_handler, [g,graph,page,page_size,prefix,rnd]).
+http_params(triple_handler, [g,graph,o,object,page,page_size,p,predicate,s,
+                             subject]).
+http_params(triple_count_handler, [g,graph,o,object,p,predicate,s,subject]).
+http_params(triple_id_handler, [g,graph,o,object,page,page_size,p,predicate,s,
+                                subject]).
 
 
 
