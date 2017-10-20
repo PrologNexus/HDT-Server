@@ -153,7 +153,7 @@ http:status_page(not_found(Uri), _Context, Dom) :-
     Dom
   ).
 
-:- set_setting(http:products, ['HDT-Server'-'v0.0.2']).
+:- set_setting(http:products, ['HDT-Server'-'v0.0.3']).
 
 
 
@@ -419,7 +419,7 @@ term_row(G, Term) -->
   },
   html(
     li([
-      \term_link(Term),
+      \html_term_link(Term),
       " ",
       a(href=UriS, "(subject)"),
       " ",
@@ -428,12 +428,6 @@ term_row(G, Term) -->
       a(href=UriO, "(object)")
     ])
   ).
-
-term_link(Iri) -->
-  {rdf_is_iri(Iri)}, !,
-  html(a(href=Iri, \rdf_html_iri(Iri))).
-term_link(Term) -->
-  rdf_html_term(Term).
 
 
 
@@ -628,7 +622,7 @@ triple_media_type(G, Page, media(text/html,_)) :-
   html_page(
     hdt(Page,["Triples",GLocal]),
     [],
-    [\html_pagination_result(Page, rdf_html_triple_table(Page.uri, G))]
+    [\html_pagination_result(Page, html_triple_table(Page.uri, G))]
   ).
 
 
@@ -829,8 +823,13 @@ arg_to_term_(Hdt, Role, Atom, Term) :-
 arg_to_term_(_, _, Atom, Term) :-
   % Make sure this is an HDT atom.
   sub_atom(Atom, 0, 1, _, First),
-  memberchk(First, ['"','<','_']), !,
-  hdt_atom_to_term(Atom, Term).
+  (   % HDT IRI
+      First == '<'
+  ->  sub_atom(Atom, 1, _, 1, Term)
+  ;   % HDT blank node, HDT literal
+      memberchk(First, ['_','"'])
+  ->  hdt_atom_to_term(Atom, Term)
+  ), !.
 % a
 arg_to_term_(_, _, a, Term) :- !,
   rdf_equal(rdf:type, Term).
@@ -1113,30 +1112,58 @@ user:head(hdt(Page,Subtitles), Content_0) -->
   ).
 
 user:body(hdt(_,_), Content_0) -->
-  html(body([\navbar(\brand, \menu, "")|Content_0])).
-/* ToC https://github.com/afeld/bootstrap-toc
-  html(
-    body(
-      ['data-spy'("scroll"),'data-target'('#toc')],
-      [
-        link(
-          [
-            href='https://cdn.rawgit.com/afeld/bootstrap-toc/v0.4.1/dist/bootstrap-toc.min.css',
-            rel=stylesheet
-          ],
-          []
-        ),
-        script(
-          src='https://cdn.rawgit.com/afeld/bootstrap-toc/v0.4.1/dist/bootstrap-toc.min.js',
-          []
-        ),
-        \navbar(\brand, \menu, ""),
-        nav(['data-toggle'(toc),id(toc)], [])
-      | Content_0
-      ]
-    )
-  ).
-*/
+  html(body([\navbar("HDT-Server", \menu, "")|Content_0])).
 
-brand -->
-  html("HDT-Server").
+
+
+%! html_term(+Term:compound)// is det.
+
+html_term(literal(type(D,Lex))) --> !,
+  html(["\"",Lex,"\"^^<",D,">"]).
+html_term(literal(lang(LTag,Lex))) --> !,
+  html(["\"",Lex,"\"@",LTag]).
+html_term(Atom) -->
+  html(Atom).
+
+
+
+%! html_term_link(+Term:compound)// is det.
+
+html_term_link(BNode) -->
+  {rdf_is_bnode(BNode)}, !,
+  html(BNode).
+html_term_link(Iri) -->
+  {rdf_is_iri(Iri)}, !,
+  html(a(href=Iri, Iri)).
+html_term_link(literal(lang(LTag,Lex))) --> !,
+  html(["\"",Lex,"\"@",LTag]).
+html_term_link(literal(type(D,Lex))) -->
+  html(["\"",Lex,"\"^^<",a(href=D, D),">"]).
+
+
+
+%! html_triple_table(+Uri:atom, +G:atom, +Triples:list(compound))// is det.
+
+html_triple_table(Uri, G, Triples) -->
+  table(
+    \table_header_row(["Subject","Predicate","Object"]),
+    \html_maplist(html_triple_table_row(Uri, G), Triples)
+  ).
+
+html_triple_table_row(Uri, G, rdf(S,P,O)) -->
+  {
+    maplist(rdf_term_to_atom, [S,P,O], [AtomS,AtomP,AtomO]),
+    (var(G) -> T = [] ; T = [graph(G)]),
+    maplist(
+      uri_comp_set(query, Uri),
+      [[subject(AtomS)|T],[predicate(AtomP)|T],[object(AtomO)|T]],
+      [UriS,UriP,UriO]
+    )
+  },
+  html(
+    tr([
+      td(a(href=UriS, S)),
+      td(a(href=UriP, P)),
+      td(a(href=UriO, \html_term(O)))
+    ])
+  ).
