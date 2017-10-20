@@ -357,6 +357,7 @@ term_method(Request, Role, Method, MediaTypes) :-
     ],
     [attribute_declarations(http_param)]
   ),
+  rnd_page_number(Rnd, PageNumber, SinglePage),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
   alt_atom_(G1, G2, G),
@@ -364,11 +365,12 @@ term_method(Request, Role, Method, MediaTypes) :-
   pagination(
     Term,
     hdt_term_(Hdt, Role, Prefix, Rnd, _LeafRole, Term),
-    hdt_term_count_(Hdt, Role, Prefix),
+    hdt_term_count_(Hdt, Role, Prefix, Rnd, PageSize),
     _{
       graph: G,
       page_number: PageNumber,
       page_size: PageSize,
+      single_page: SinglePage,
       uri: Uri
     },
     Page
@@ -465,6 +467,7 @@ term_id_method(Request, Role, Method, MediaTypes) :-
     ],
     [attribute_declarations(http_param)]
   ),
+  rnd_page_number(Rnd, PageNumber, SinglePage),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
   alt_atom_(G1, G2, G),
@@ -472,11 +475,12 @@ term_id_method(Request, Role, Method, MediaTypes) :-
   pagination(
     Id,
     hdt_term_id_(Hdt, Role, Prefix, Rnd, Id),
-    hdt_term_count_(Hdt, Role, Prefix),
+    hdt_term_count_(Hdt, Role, Prefix, Rnd, PageSize),
     _{
       graph: G,
       page_number: PageNumber,
       page_size: PageSize,
+      single_page: SinglePage,
       uri: Uri
     },
     Page
@@ -538,6 +542,7 @@ triple_method(Request, Method, MediaTypes) :-
     ],
     [attribute_declarations(http_param)]
   ),
+  rnd_page_number(Rnd, PageNumber, SinglePage),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
   maplist(
@@ -557,11 +562,12 @@ triple_method(Request, Method, MediaTypes) :-
   pagination(
     rdf(S,P,O),
     hdt_triple_(Hdt, Rnd, S, P, O),
-    hdt_triple_count_(Hdt, Rnd, S, P, O),
+    hdt_triple_count_(Hdt, Rnd, PageSize, S, P, O),
     _{
       page_number: PageNumber,
       page_size: PageSize,
       query: [graph(G)|T],
+      single_page: SinglePage,
       uri: Uri
     },
     Page
@@ -656,14 +662,15 @@ triple_id_method(Request, Method, MediaTypes) :-
     ],
     [attribute_declarations(http_param)]
   ),
+  rnd_page_number(Rnd, PageNumber, SinglePage),
+  memberchk(request_uri(RelUri), Request),
+  http_absolute_uri(RelUri, Uri),
   maplist(
     alt_atom_,
     [SAtom1,PAtom1,OAtom1,G1],
     [SAtom2,PAtom2,OAtom2,G2],
     [SAtom,PAtom,OAtom,G]
   ),
-  memberchk(request_uri(RelUri), Request),
-  http_absolute_uri(RelUri, Uri),
   include(ground, [subject(SAtom),predicate(PAtom),object(OAtom)], T),
   hdt_graph(Hdt, G),
   maplist(
@@ -675,11 +682,12 @@ triple_id_method(Request, Method, MediaTypes) :-
   pagination(
     IdTriple,
     hdt_triple_id_(Hdt, Rnd, S, P, O, IdTriple),
-    hdt_triple_count_(Hdt, Rnd, S, P, O),
+    hdt_triple_count_(Hdt, Rnd, PageSize, S, P, O),
     _{
       page_number: PageNumber,
       page_size: PageSize,
       query: [graph(G)|T],
+      single_page: SinglePage,
       uri: Uri
     },
     Page
@@ -801,16 +809,19 @@ hdt_term_(Hdt, Role, Prefix, Rnd, LeafRole, Term) :-
   ->  hdt_term_prefix(Hdt, Role, Prefix, LeafRole, Term)
   ;   Rnd == false
   ->  hdt_term(Hdt, Role, LeafRole, Term)
-  ;   hdt_term_random(Hdt, Role, LeafRole, Term)
+  ;   repeat,
+      hdt_term_random(Hdt, Role, LeafRole, Term)
   ).
 
 
 
-%! hdt_term_count_(+Hdt:blob, +Role:atom, +Prefix:atom, -Count:nonneg) is det.
+%! hdt_term_count_(+Hdt:blob, +Role:atom, +Prefix:atom, +Rnd:boolean,
+%!                 +PageSize:nonneg, -Count:nonneg) is det.
 
-hdt_term_count_(Hdt, Role, Prefix, Count) :-
+hdt_term_count_(Hdt, Role, Prefix, false, _, Count) :- !,
   var(Prefix),
   hdt_term_count(Hdt, Role, Count).
+hdt_term_count_(_, _, _, true, Count, Count).
 
 
 
@@ -828,15 +839,17 @@ hdt_term_id_(Hdt, Role, Prefix, Rnd, id(LeafRole,Id)) :-
 hdt_triple_(Hdt, false, S, P, O) :- !,
   hdt_triple(Hdt, S, P, O).
 hdt_triple_(Hdt, true, S, P, O) :-
+  repeat,
   hdt_triple_random(Hdt, S, P, O).
 
 
 
-%! hdt_triple_count_(+Hdt:blob, +Rnd:boolean, ?S, ?P, ?O, -N:nonneg) is nondet.
+%! hdt_triple_count_(+Hdt:blob, +Rnd:boolean, +PageSize:nonneg, ?S, ?P, ?O,
+%!                   -N:nonneg) is nondet.
 
-hdt_triple_count_(Hdt, false, S, P, O, N) :- !,
+hdt_triple_count_(Hdt, false, _, S, P, O, N) :- !,
   hdt_triple_count(Hdt, S, P, O, N).
-hdt_triple_count_(_, true, _, _, _, 1).
+hdt_triple_count_(_, true, N, _, _, _, N).
 
 
 
@@ -847,8 +860,23 @@ hdt_triple_id_(Hdt, false, S, P, O, IdTriple) :- !,
   hdt_triple(Hdt, S, P, O),
   hdt_triple_translate(Hdt, rdf(S,P,O), IdTriple).
 hdt_triple_id_(Hdt, true, S, P, O, IdTriple) :-
+  repeat,
   hdt_triple_random(Hdt, S, P, O),
   hdt_triple_translate(Hdt, rdf(S,P,O), IdTriple).
+
+
+
+%! rnd_page_number(+Rnd:boolean, +PageNumber:positive_integer,
+%!                 -SinglePage:boolean) is det.
+%
+% Throws an HTTP exception in case random values are requests beyond
+% page one.  The indea hebind this is that there are no pages for
+% randomly generated content.
+
+rnd_page_number(true, PageNumber, true) :-
+  PageNumber > 1, !,
+  throw(error(type_error(rnd_page,PageNumber))).
+rnd_page_number(Bool, _, Bool).
 
 
 
