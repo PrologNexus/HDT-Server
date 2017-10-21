@@ -523,15 +523,14 @@ term_id_media_type(Role, G, Page, media(text/html,_)) :-
   html_page(
     hdt(Page,[CRole]),
     [],
-    [\html_pagination_result(Page, term_id_table(G))]
+    [\html_pagination_result(Page, html_term_id_table(G))]
   ).
 
-term_id_table(G, Ids) -->
-  html(ul(\html_maplist(term_id_row(G), Ids))).
+html_term_id_table(G, Ids) -->
+  html(ul(\html_maplist(html_term_id_row(G), Ids))).
 
-term_id_row(G, id(Role,Id)) -->
-  {
-    role_triple_role(Role, TripleRole),
+html_term_id_row(G, id(Role,Id)) -->
+  {    role_triple_role(Role, TripleRole),
     H =.. [TripleRole,Id],
     (rdf_equal(graph:default, G) -> T = [] ; T = [graph(G)]),
     http_link_to_id(triple_id_handler, [H|T], Uri)
@@ -754,7 +753,7 @@ triple_id_media_type(G, Page, media(text/html,_)) :-
   html_page(
     hdt(Page,["Triples","Identifiers",GLocal]),
     [],
-    [\html_pagination_result(Page, hdt_id_table(Page.uri, G))]
+    [\html_pagination_result(Page, html_triple_id_table(Page.uri, G))]
   ).
 
 write_gml_triples(Triples) :-
@@ -763,13 +762,13 @@ write_gml_triples(Triples) :-
 write_gml_triple(rdf(SId,PId,OId)) :-
   format("edge [ label ~a source ~a target ~a ]\n", [PId,SId,OId]).
 
-hdt_id_table(Uri, G, Triples) -->
+html_triple_id_table(Uri, G, Triples) -->
   table(
     \table_header_row(["Subject","Predicate","Object"]),
-    \html_maplist(hdt_id_table_row(Uri, G), Triples)
+    \html_maplist(html_triple_id_row(Uri, G), Triples)
   ).
 
-hdt_id_table_row(Uri, G, rdf(id(SRole,SId),id(PRole,PId),id(ORole,OId))) -->
+html_triple_id_row(Uri, G, rdf(id(SRole,SId),id(PRole,PId),id(ORole,OId))) -->
   {
     (var(G) -> T = [id(true)] ; T = [graph(G),id(true)]),
     maplist(
@@ -850,9 +849,9 @@ hdt_graphs_(Gs) :-
 
 
 
-%! hdt_term_id(+Hdt:blob, +Role:atom, -Id:positive_integer) is nondet.
+%! hdt_term_id(+Hdt:blob, +Role:atom, -Id:compound) is nondet.
 
-hdt_term_id(Hdt, Role, Id) :-
+hdt_term_id(Hdt, Role, id(LeafRole,Id)) :-
   hdt_term(Hdt, Role, LeafRole, Term),
   hdt_term_translate(Hdt, LeafRole, Term, Id).
 
@@ -879,18 +878,10 @@ hdt_term_random_(Hdt, Role, LeafRole, Term) :-
 
 
 
-%! hdt_term_random_id(+Hdt:blob, +Role:atom, -Id:positive_integer) is nondet.
+%! hdt_term_random_id(+Hdt:blob, +Role:atom, -Id:compound) is nondet.
 
-hdt_term_random_id(Hdt, Role, Id) :-
+hdt_term_random_id(Hdt, Role, id(LeafRole,Id)) :-
   hdt_term_random_(Hdt, Role, LeafRole, Term),
-  hdt_term_translate(Hdt, LeafRole, Term, Id).
-
-
-
-%! hdt_term_id(+Hdt:blob, +Role:atom, -Id:compound) is nondet.
-
-hdt_term_id_(Hdt, Role, id(LeafRole,Id)) :-
-  hdt_term(Hdt, Role, LeafRole, Term),
   hdt_term_translate(Hdt, LeafRole, Term, Id).
 
 
