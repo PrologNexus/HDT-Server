@@ -1040,7 +1040,7 @@ http_param(prefix, [
 http_param(random, [
   boolean,
   default(false),
-  description("Retrieve a randomly chosen triple.  Default is `false'.")
+  description("Retrieve a randomly chosen result.  Default is `false'.")
 ]).
 http_param(s, Options) :-
   http_param(subject, Options).
