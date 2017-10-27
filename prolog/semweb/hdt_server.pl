@@ -1,5 +1,4 @@
 :- module(hdt_server, []).
-:- reexport(library(hdt_db)).
 
 /** <module> HDT server
 
@@ -12,7 +11,6 @@
 :- use_module(library(atom_ext)).
 :- use_module(library(conf_ext)).
 :- use_module(library(error)).
-:- use_module(library(hdt_db)).
 :- use_module(library(html/html_doc)).
 :- use_module(library(html/html_ext)).
 :- use_module(library(html/html_pagination)).
@@ -20,6 +18,7 @@
 :- use_module(library(http/http_pagination)).
 :- use_module(library(http/http_server)).
 :- use_module(library(pagination)).
+:- use_module(library(semweb/hdt_db)).
 :- use_module(library(semweb/rdf_api)).
 :- use_module(library(semweb/rdf_export)).
 :- use_module(library(settings)).
