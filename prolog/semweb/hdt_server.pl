@@ -32,7 +32,7 @@
 
 :- http_handler(/, hdt_handler,
                 [methods([get,head,options])]).
-:- http_handler(root(graph), graph_handler,
+:- http_handler(root(doc), doc_handler,
                 [methods([get,head,options])]).
 :- http_handler(root(node), node_handler,
                 [methods([get,head,options])]).
@@ -104,7 +104,7 @@
     user:body//2,
     user:head//2.
 
-html:handler_description(graph_handler, "Graphs").
+html:handler_description(doc_handler, "Documentation").
 html:handler_description(node_handler, "Nodes").
 html:handler_description(object_handler, "Objects").
 html:handler_description(predicate_handler, "Predicates").
@@ -114,8 +114,8 @@ html:handler_description(source_handler, "Sources").
 html:handler_description(subject_handler, "Subjects").
 html:handler_description(triple_handler, "Triples").
 
+html:menu_item(doc_handler, "Documentation").
 html:menu_item(term, "Terms").
-  html:menu_item(term, graph_handler, "Graphs").
   html:menu_item(term, node_handler, "Nodes").
   html:menu_item(term, object_handler, "Objects").
   html:menu_item(term, predicate_handler, "Predicates").
@@ -135,10 +135,6 @@ html:menu_item(triple, "Triples").
   html:menu_item(triple, triple_handler, "Triples").
   html:menu_item(triple, triple_id_handler, "Triples IDs").
 
-html_doc:custom_param_type(Spec) -->
-  {memberchk(hdt_term, Spec)},
-  html("HDT term (RDF term or positive integer)").
-
 http:status_page(not_found(Uri), _Context, Dom) :-
   phrase(
     page(
@@ -152,7 +148,7 @@ http:status_page(not_found(Uri), _Context, Dom) :-
     Dom
   ).
 
-:- set_setting(http:products, ['HDT-Server'-'v0.0.3']).
+:- set_setting(http:products, ['HDT-Server'-'v0.0.4']).
 
 
 
@@ -177,20 +173,133 @@ http:status_page(not_found(Uri), _Context, Dom) :-
 
 % /
 hdt_handler(Request) :-
-  rest_method(Request, hdt_method).
+  rest_method(Request, hdt_method(Request)).
 
 % /: GET,HEAD
-hdt_method(Method, MediaTypes) :-
+hdt_method(Request, Method, MediaTypes) :-
   http_is_get(Method),
-  rest_media_type(MediaTypes, hdt_media_type).
+  http_parameters(
+    Request,
+    [graph(G,[optional(true)]),page(PageNumber),page_size(PageSize)],
+    [attribute_declarations(http_param)]
+  ),
+  memberchk(request_uri(RelUri), Request),
+  http_absolute_uri(RelUri, Uri),
+  (   var(G)
+  ->  pagination_bulk(
+        hdt_graphs_,
+        _{page_number: PageNumber, page_size: PageSize, uri: Uri},
+        Page
+      ),
+      rest_media_type(MediaTypes, hdt_media_type(Page))
+  ;   rest_media_type(MediaTypes, graph_media_type(G))
+  ).
 
-% /: GET,HEAD: text/html
-hdt_media_type(media(text/html,_)) :-
+graph_media_type(G, media(text/html,_)) :-
+  rdf_global_id(graph:Name, G),
   html_page(
-    hdt(_,[]),
+    hdt(_,["Graph",Name]),
     [],
     [
-      \http_doc_handler(hdt_server, graph_handler),
+      \table(
+        \table_header_row(["Property","Value"]),
+        \graph_rows(G)
+      )
+    ]
+  ).
+
+graph_rows(G) -->
+  {
+    hdt_graph(Hdt, G),
+    http_link_to_id(node_handler, [graph(G)], NodesUri),
+    hdt_term_count(Hdt, node, Nodes),
+    http_link_to_id(object_handler, [graph(G)], ObjectsUri),
+    hdt_term_count(Hdt, object, Objects),
+    http_link_to_id(predicate_handler, [graph(G)], PredicatesUri),
+    hdt_term_count(Hdt, predicate, Predicates),
+    http_link_to_id(shared_handler, [graph(G)], SharedUri),
+    hdt_term_count(Hdt, shared, Shared),
+    http_link_to_id(sink_handler, [graph(G)], SinksUri),
+    hdt_term_count(Hdt, sink, Sinks),
+    http_link_to_id(source_handler, [graph(G)], SourcesUri),
+    hdt_term_count(Hdt, source, Sources),
+    http_link_to_id(subject_handler, [graph(G)], SubjectsUri),
+    hdt_term_count(Hdt, subject, Subjects),
+    http_link_to_id(triple_handler, [graph(G)], TriplesUri),
+    hdt_triple_count(Hdt, _, _, _, Triples)
+  },
+  html([
+    tr([td("Nodes"),td(a(href=NodesUri,\html_thousands(Nodes)))]),
+    tr([td("Objects"),td(a(href=ObjectsUri,\html_thousands(Objects)))]),
+    tr([td("Predicates"),td(a(href=PredicatesUri,\html_thousands(Predicates)))]),
+    tr([td("Shared"),td(a(href=SharedUri,\html_thousands(Shared)))]),
+    tr([td("Sinks"),td(a(href=SinksUri,\html_thousands(Sinks)))]),
+    tr([td("Sources"),td(a(href=SourcesUri,\html_thousands(Sources)))]),
+    tr([td("Subjects"),td(a(href=SubjectsUri,\html_thousands(Subjects)))]),
+    tr([td("Triples"),td(a(href=TriplesUri,\html_thousands(Triples)))])
+  ]).
+
+% /graph: GET,HEAD: application/json
+hdt_media_type(Page, media(application/json,_)) :-
+  http_pagination_json(Page).
+% /graph: GET,HEAD: text/html
+hdt_media_type(Page, media(text/html,_)) :-
+  http_pagination_header(Page),
+  html_page(
+    hdt(_,["Graph","Overview"]),
+    [],
+    [\html_pagination_result(Page, graphs_table)]
+  ).
+
+graphs_table(Gs) -->
+  table(
+    \table_header_row(["RDF Graph","Triples","Modified","Source"]),
+    \html_maplist(graph_row, Gs)
+  ).
+
+graph_row(G) -->
+  {
+    hdt_graph(Hdt, G),
+    % name
+    http_link_to_id(hdt_handler, [graph(G)], GraphUri),
+    rdf_global_id(graph:Name, G),
+    % number of triples
+    http_link_to_id(triple_handler, [graph(G)], TriplesUri),
+    hdt_triple_count(Hdt, _, _, _, NumTriples),
+    % modified
+    P = '<http://purl.org/dc/terms/issued>',
+    once(hdt_db:hdt_triple_(Hdt, header, _, P, Atom1)),
+    atom_concat('"', Atom2, Atom1),
+    atom_concat(Modified, '"', Atom2),
+    % source
+    once(hdt_db:hdt_triple_(Hdt, header, Source, _, _))
+  },
+  html(
+    tr([
+      td(a(href=GraphUri,Name)),
+      td(a(href=TriplesUri,\html_thousands(NumTriples))),
+      td(Modified),
+      td(Source)
+    ])
+  ).
+
+
+
+% /doc
+doc_handler(Request) :-
+  rest_method(Request, doc_method).
+
+% /doc: GET,HEAD
+doc_method(Method, MediaTypes) :-
+  http_is_get(Method),
+  rest_media_type(MediaTypes, doc_media_type).
+
+% /doc: GET,HEAD: text/html
+doc_media_type(media(text/html,_)) :-
+  html_page(
+    hdt(_,["Documentation"]),
+    [],
+    [
       \http_doc_handler(hdt_server, node_handler),
       \http_doc_handler(hdt_server, node_count_handler),
       \http_doc_handler(hdt_server, node_id_handler),
@@ -217,51 +326,6 @@ hdt_media_type(media(text/html,_)) :-
       \http_doc_handler(hdt_server, triple_id_handler)
     ]
   ).
-
-
-
-% /graph
-graph_handler(Request) :-
-  rest_method(Request, graph_method(Request)).
-
-% /graph: GET,HEAD
-graph_method(Request, Method, MediaTypes) :-
-  http_is_get(Method),
-  http_parameters(
-    Request,
-    [page(PageNumber),page_size(PageSize)],
-    [attribute_declarations(http_param)]
-  ),
-  memberchk(request_uri(RelUri), Request),
-  http_absolute_uri(RelUri, Uri),
-  pagination_bulk(
-    hdt_graphs_,
-    _{page_number: PageNumber, page_size: PageSize, uri: Uri},
-    Page
-  ),
-  rest_media_type(MediaTypes, graph_media_type(Page)).
-
-% /graph: GET,HEAD: application/json
-graph_media_type(Page, media(application/json,_)) :-
-  http_pagination_json(Page).
-% /graph: GET,HEAD: text/html
-graph_media_type(Page, media(text/html,_)) :-
-  http_pagination_header(Page),
-  html_page(
-    hdt(Page,["Graphs"]),
-    [],
-    [\html_pagination_result(Page, graph_table)]
-  ).
-
-graph_table(Gs) -->
-  html(ul(\html_maplist(graph_row, Gs))).
-
-graph_row(G) -->
-  {
-    http_link_to_id(triple_handler, [graph(G)], Uri),
-    rdf_global_id(graph:Name, G)
-  },
-  html(li(a(href=Uri, Name))).
 
 
 
@@ -1049,7 +1113,7 @@ http_param(subject, [
   optional(true)
 ]).
 
-http_params(hdt_handler, []).
+http_params(hdt_handler, [page,page_size]).
 http_params(doc_handler, []).
 http_params(graph_handler, [page,page_size]).
 http_params(node_handler, [g,graph,page,page_size,prefix,random]).
