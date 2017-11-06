@@ -11,6 +11,7 @@
 :- use_module(library(atom_ext)).
 :- use_module(library(conf_ext)).
 :- use_module(library(error)).
+:- use_module(library(hdt)).
 :- use_module(library(html/html_doc)).
 :- use_module(library(html/html_ext)).
 :- use_module(library(html/html_pagination)).
@@ -18,7 +19,6 @@
 :- use_module(library(http/http_pagination)).
 :- use_module(library(http/http_server)).
 :- use_module(library(pagination)).
-:- use_module(library(semweb/hdt_db)).
 :- use_module(library(semweb/rdf_api)).
 :- use_module(library(semweb/rdf_export)).
 :- use_module(library(settings)).
@@ -82,6 +82,11 @@
                 [methods([get,head,options])]).
 :- http_handler(root(triple/id), triple_id_handler,
                 [methods([get,head,options])]).
+
+:- at_halt(forall(hdt_graph_(Hdt, _), hdt_close(Hdt))).
+
+:- dynamic
+    hdt_graph_/2.
 
 :- initialization
    conf_json(Dict1),
@@ -147,6 +152,11 @@ http:status_page(not_found(Uri), _Context, Dom) :-
     ),
     Dom
   ).
+
+:- rdf_meta
+   hdt_graph(r),
+   hdt_graph(?, r),
+   hdt_init(+, r).
 
 :- set_setting(http:products, ['HDT-Server'-'v0.0.4']).
 
@@ -266,13 +276,13 @@ graph_row(G) -->
     % number of triples
     http_link_to_id(triple_handler, [graph(G)], TriplesUri),
     hdt_triple_count(Hdt, _, _, _, NumTriples),
-    % modified
+    % TBD: modified
     P = '<http://purl.org/dc/terms/issued>',
-    once(hdt_db:hdt_triple_(Hdt, header, _, P, Atom1)),
+    once(hdt:hdt_triple_(Hdt, header, _, P, Atom1)),
     atom_concat('"', Atom2, Atom1),
     atom_concat(Modified, '"', Atom2),
-    % source
-    once(hdt_db:hdt_triple_(Hdt, header, Source, _, _))
+    % TBD: source
+    once(hdt:hdt_triple_(Hdt, header, Source, _, _))
   },
   html(
     tr([
@@ -568,7 +578,7 @@ term_id_method(Request, Role, Method, MediaTypes) :-
       )
   ;   pagination(
         Id,
-        hdt_term_id(Hdt, Role, Id),
+        hdt_term_id_(Hdt, Role, Id),
         hdt_term_count(Hdt, Role),
         Options,
         Page
@@ -660,7 +670,7 @@ triple_method(Request, Method, MediaTypes) :-
         hdt_triple_random_(Hdt, S, P, O),
         RandomOptions,
         Page
-      )
+      ),format(user_output, "~w\n", [Page])
   ;   pagination(
         rdf(S,P,O),
         hdt_triple(Hdt, S, P, O),
@@ -684,7 +694,7 @@ triple_media_type(G, Page, media(text/html,_)) :-
   html_page(
     hdt(Page,["Triples",GLocal]),
     [],
-    [\html_pagination_result(Page, html_triple_table(Page.uri, G))]
+    [\html_pagination_result(Page, rdf_html_triple_table(Page.uri, G))]
   ).
 
 
@@ -792,7 +802,7 @@ triple_id_method(Request, Method, MediaTypes) :-
       )
   ;   pagination(
         IdTriple,
-        hdt_triple_id(Hdt, S, P, O, IdTriple),
+        hdt_triple_id_(Hdt, S, P, O, IdTriple),
         hdt_triple_count(Hdt, S, P, O),
         Options,
         Page
@@ -872,34 +882,25 @@ alt_atom_(_, _, _).
 
 
 
-%! arg_to_term_(+Hdt:blob, +Role:atom, +Atom:atom, -Term) is det.
+%! arg_to_term_(+Hdt:blob, +Role:atom, +Atom:atom, -Term:rdf_term) is det.
 
 % variable
-arg_to_term_(_, _, X, X) :-
-  var(X), !.
+arg_to_term_(_, _, Var, Var) :-
+  var(Var), !.
 % HDT ID → RDF term
 arg_to_term_(Hdt, Role, Atom, Term) :-
   atom_number(Atom, Id), !,
-  hdt_term_translate(Hdt, Role, Term, Id).
+  hdt_term_id(Hdt, Role, Term, Id).
+% a
+arg_to_term_(_, _, a, Iri) :- !,
+  rdf_equal(rdf:type, Iri).
 % HDT atom → RDF term
 arg_to_term_(_, _, Atom, Term) :-
-  % Make sure this is an HDT atom.
-  sub_atom(Atom, 0, 1, _, First),
-  (   % HDT IRI
-      First == '<'
-  ->  sub_atom(Atom, 1, _, 1, Term)
-  ;   % HDT blank node, HDT literal
-      memberchk(First, ['_','"'])
-  ->  hdt_atom_to_term(Atom, Term)
-  ), !.
-% a
-arg_to_term_(_, _, a, Term) :- !,
-  rdf_equal(rdf:type, Term).
+  rdf_atom_to_term(Atom, Term).
 % Expansion of commonly used prefixes.
-arg_to_term_(_, _, Atom1, Term) :-
-  atomic_list_concat([Prefix,Local], :, Atom1),
-  rdf_global_id(Prefix:Local, Atom2), !,
-  hdt_atom_to_term(Atom2, Term).
+arg_to_term_(_, _, Atom, Iri) :-
+  atomic_list_concat([Prefix,Local], :, Atom),
+  rdf_global_id(Prefix:Local, Iri), !.
 arg_to_term_(_, _, Atom, _) :-
   throw(error(type_error(rdf_term,Atom))).
 
@@ -912,11 +913,11 @@ hdt_graphs_(Gs) :-
 
 
 
-%! hdt_term_id(+Hdt:blob, +Role:atom, -Id:compound) is nondet.
+%! hdt_term_id_(+Hdt:blob, +Role:atom, -Id:compound) is nondet.
 
-hdt_term_id(Hdt, Role, id(LeafRole,Id)) :-
+hdt_term_id_(Hdt, Role, id(LeafRole,Id)) :-
   hdt_term(Hdt, Role, LeafRole, Term),
-  hdt_term_translate(Hdt, LeafRole, Term, Id).
+  hdt_term_id(Hdt, LeafRole, Term, Id).
 
 
 
@@ -925,7 +926,7 @@ hdt_term_id(Hdt, Role, id(LeafRole,Id)) :-
 
 hdt_term_prefix_id(Hdt, Role, Prefix, Id) :-
   hdt_term_prefix(Hdt, Role, Prefix, LeafRole, Term),
-  hdt_term_translate(Hdt, LeafRole, Term, Id).
+  hdt_term_id(Hdt, LeafRole, Term, Id).
 
 
 
@@ -945,7 +946,7 @@ hdt_term_random_(Hdt, Role, LeafRole, Term) :-
 
 hdt_term_random_id(Hdt, Role, id(LeafRole,Id)) :-
   hdt_term_random_(Hdt, Role, LeafRole, Term),
-  hdt_term_translate(Hdt, LeafRole, Term, Id).
+  hdt_term_id(Hdt, LeafRole, Term, Id).
 
 
 
@@ -957,11 +958,11 @@ hdt_triple_random_(Hdt, S, P, O) :-
 
 
 
-%! hdt_triple_id(+Hdt:blob, ?S, ?P, ?O, -IdTriple:compound) is nondet.
+%! hdt_triple_id_(+Hdt:blob, ?S, ?P, ?O, -IdTriple:compound) is nondet.
 
-hdt_triple_id(Hdt, S, P, O, IdTriple) :-
+hdt_triple_id_(Hdt, S, P, O, IdTriple) :-
   hdt_triple(Hdt, S, P, O),
-  hdt_triple_translate(Hdt, rdf(S,P,O), IdTriple).
+  hdt_triple_id(Hdt, rdf(S,P,O), IdTriple).
 
 
 
@@ -969,7 +970,7 @@ hdt_triple_id(Hdt, S, P, O, IdTriple) :-
 
 hdt_triple_random_id(Hdt, S, P, O, IdTriple) :-
   hdt_triple_random_(Hdt, S, P, O),
-  hdt_triple_translate(Hdt, rdf(S,P,O), IdTriple).
+  hdt_triple_id(Hdt, rdf(S,P,O), IdTriple).
 
 
 
@@ -1183,6 +1184,9 @@ html_term(Atom) -->
 
 %! html_term_link(+Term:compound)// is det.
 
+html_term_link(SemLit) -->
+  {synlit_semlit(SynLit, SemLit)}, !,
+  html_term_link(SynLit).
 html_term_link(BNode) -->
   {rdf_is_bnode(BNode)}, !,
   html(BNode).
@@ -1196,28 +1200,100 @@ html_term_link(literal(type(D,Lex))) -->
 
 
 
-%! html_triple_table(+Uri:atom, +G:atom, +Triples:list(compound))// is det.
 
-html_triple_table(Uri, G, Triples) -->
-  table(
-    \table_header_row(["Subject","Predicate","Object"]),
-    \html_maplist(html_triple_table_row(Uri, G), Triples)
-  ).
 
-html_triple_table_row(Uri, G, rdf(S,P,O)) -->
-  {
-    maplist(rdf_term_to_atom, [S,P,O], [AtomS,AtomP,AtomO]),
-    (var(G) -> T = [] ; T = [graph(G)]),
-    maplist(
-      uri_comp_set(query, Uri),
-      [[subject(AtomS)|T],[predicate(AtomP)|T],[object(AtomO)|T]],
-      [UriS,UriP,UriO]
+% HDT ↔ RDF graph mapping %
+
+%! hdt_deinit is det.
+%! hdt_deinit(+G:atom) is det.
+%
+% Closes the HDT file denoted by the named graph `G`.
+
+hdt_deinit :-
+  forall(hdt_graph(G), hdt_deinit(G)).
+
+
+hdt_deinit(G) :-
+  with_mutex(hdt, (
+    (   hdt_graph_(Hdt, G)
+    ->  retractall(hdt_graph_(Hdt, G)),
+        hdt_close(Hdt)
+    ;   existence_error(hdt_graph, G)
     )
-  },
-  html(
-    tr([
-      td(a(href=UriS, S)),
-      td(a(href=UriP, P)),
-      td(a(href=UriO, \html_term(O)))
-    ])
-  ).
+  )).
+
+
+
+%! hdt_graph(+G:atom) is semidet.
+%! hdt_graph(-G:atom) is nondet.
+
+hdt_graph(G) :-
+  hdt_graph(_, G).
+
+
+%! hdt_graph(+Hdt:blob, +G:atom) is semidet.
+%! hdt_graph(+Hdt:blob, -G:atom) is semidet.
+%! hdt_graph(-Hdt:blob, +G:atom) is semidet.
+%! hdt_graph(-Hdt:blob, -G:atom) is nondet.
+
+hdt_graph(Hdt, G) :-
+  ground(Hdt), !,
+  once(hdt_graph_(Hdt, G)).
+hdt_graph(Hdt, G) :-
+  ground(G), !,
+  once(hdt_graph_(Hdt, G)).
+hdt_graph(Hdt, G) :-
+  hdt_graph_(Hdt, G).
+
+
+
+%! hdt_init(+HdtFile:atom) is det.
+%! hdt_init(+HdtFile:atom, ?G:atom) is det.
+%
+% Opens the given HDT file (`HdtFile`) and allows it to be denoted by
+% the named graph `G`.
+%
+% @arg HdtFile An atomic denoting a local HDT file.
+%
+% @arg G An alias by which one can refer to the opaque HDT handle.
+%      This alias acts as a name for the graph, or set of triples,
+%      that is contained in the HDT file.
+%
+%      If the graph G is unboud, the URI version of the HDT file name
+%      is used.
+
+hdt_init(HdtFile) :-
+  rdf_default_graph(G),
+  hdt_init(HdtFile, G).
+
+
+hdt_init(HdtFile, G) :-
+  (var(G) -> uri_file_name(G, HdtFile) ; true),
+  hdt_open(Hdt, HdtFile),
+  with_mutex(hdt, (
+    (   hdt_graph_(Hdt, _)
+    ->  throw(error(already_exists(hdt_blob, Hdt), _))
+    ;   hdt_graph_(_, G)
+    ->  throw(error(already_exists(hdt_graph, G)))
+    ;   assert(hdt_graph_(Hdt, G))
+    )
+  )).
+
+
+
+
+
+% MESSAGES %
+
+:- multifile
+    prolog:error_message//1.
+
+prolog:error_message(already_exists(Type,Term)) -->
+  ["The "],
+  hdt_type(Type),
+  [" ‘~w’ already exists."-[Term]].
+
+hdt_type(hdt_blob) -->
+  "HDT blob".
+hdt_type(hdt_graph) -->
+  "HDT graph".
