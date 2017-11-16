@@ -11,7 +11,6 @@
 :- use_module(library(atom_ext)).
 :- use_module(library(conf_ext)).
 :- use_module(library(error)).
-:- use_module(library(hdt)).
 :- use_module(library(html/html_doc)).
 :- use_module(library(html/html_ext)).
 :- use_module(library(html/html_pagination)).
@@ -19,6 +18,8 @@
 :- use_module(library(http/http_pagination)).
 :- use_module(library(http/http_server)).
 :- use_module(library(pagination)).
+:- use_module(library(semweb/hdt_api)).
+:- use_module(library(semweb/hdt_graph)).
 :- use_module(library(semweb/rdf_api)).
 :- use_module(library(semweb/rdf_export)).
 :- use_module(library(settings)).
@@ -82,11 +83,6 @@
                 [methods([get,head,options])]).
 :- http_handler(root(triple/id), triple_id_handler,
                 [methods([get,head,options])]).
-
-:- at_halt(forall(hdt_graph_(Hdt, _), hdt_close(Hdt))).
-
-:- dynamic
-    hdt_graph_/2.
 
 :- initialization
    conf_json(Dict1),
@@ -152,11 +148,6 @@ http:status_page(not_found(Uri), _Context, Dom) :-
     ),
     Dom
   ).
-
-:- rdf_meta
-   hdt_graph(r),
-   hdt_graph(?, r),
-   hdt_init(+, r).
 
 :- set_setting(http:products, ['HDT-Server'-'v0.0.4']).
 
@@ -278,9 +269,7 @@ graph_row(G) -->
     hdt_triple_count(Hdt, _, _, _, NumTriples),
     % TBD: modified
     P = '<http://purl.org/dc/terms/issued>',
-    once(hdt:hdt_triple_(Hdt, header, _, P, Atom1)),
-    atom_concat('"', Atom2, Atom1),
-    atom_concat(Modified, '"', Atom2),
+    once(hdt:hdt_triple_(Hdt, header, _, P, Modified)),
     % TBD: source
     once(hdt:hdt_triple_(Hdt, header, Source, _, _))
   },
@@ -1197,103 +1186,3 @@ html_term_link(literal(lang(LTag,Lex))) --> !,
   html(["\"",Lex,"\"@",LTag]).
 html_term_link(literal(type(D,Lex))) -->
   html(["\"",Lex,"\"^^<",a(href=D, D),">"]).
-
-
-
-
-
-% HDT ↔ RDF graph mapping %
-
-%! hdt_deinit is det.
-%! hdt_deinit(+G:atom) is det.
-%
-% Closes the HDT file denoted by the named graph `G`.
-
-hdt_deinit :-
-  forall(hdt_graph(G), hdt_deinit(G)).
-
-
-hdt_deinit(G) :-
-  with_mutex(hdt, (
-    (   hdt_graph_(Hdt, G)
-    ->  retractall(hdt_graph_(Hdt, G)),
-        hdt_close(Hdt)
-    ;   existence_error(hdt_graph, G)
-    )
-  )).
-
-
-
-%! hdt_graph(+G:atom) is semidet.
-%! hdt_graph(-G:atom) is nondet.
-
-hdt_graph(G) :-
-  hdt_graph(_, G).
-
-
-%! hdt_graph(+Hdt:blob, +G:atom) is semidet.
-%! hdt_graph(+Hdt:blob, -G:atom) is semidet.
-%! hdt_graph(-Hdt:blob, +G:atom) is semidet.
-%! hdt_graph(-Hdt:blob, -G:atom) is nondet.
-
-hdt_graph(Hdt, G) :-
-  ground(Hdt), !,
-  once(hdt_graph_(Hdt, G)).
-hdt_graph(Hdt, G) :-
-  ground(G), !,
-  once(hdt_graph_(Hdt, G)).
-hdt_graph(Hdt, G) :-
-  hdt_graph_(Hdt, G).
-
-
-
-%! hdt_init(+HdtFile:atom) is det.
-%! hdt_init(+HdtFile:atom, ?G:atom) is det.
-%
-% Opens the given HDT file (`HdtFile`) and allows it to be denoted by
-% the named graph `G`.
-%
-% @arg HdtFile An atomic denoting a local HDT file.
-%
-% @arg G An alias by which one can refer to the opaque HDT handle.
-%      This alias acts as a name for the graph, or set of triples,
-%      that is contained in the HDT file.
-%
-%      If the graph G is unboud, the URI version of the HDT file name
-%      is used.
-
-hdt_init(HdtFile) :-
-  rdf_default_graph(G),
-  hdt_init(HdtFile, G).
-
-
-hdt_init(HdtFile, G) :-
-  (var(G) -> uri_file_name(G, HdtFile) ; true),
-  hdt_open(Hdt, HdtFile),
-  with_mutex(hdt, (
-    (   hdt_graph_(Hdt, _)
-    ->  throw(error(already_exists(hdt_blob, Hdt), _))
-    ;   hdt_graph_(_, G)
-    ->  throw(error(already_exists(hdt_graph, G)))
-    ;   assert(hdt_graph_(Hdt, G))
-    )
-  )).
-
-
-
-
-
-% MESSAGES %
-
-:- multifile
-    prolog:error_message//1.
-
-prolog:error_message(already_exists(Type,Term)) -->
-  ["The "],
-  hdt_type(Type),
-  [" ‘~w’ already exists."-[Term]].
-
-hdt_type(hdt_blob) -->
-  "HDT blob".
-hdt_type(hdt_graph) -->
-  "HDT graph".
