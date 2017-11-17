@@ -25,6 +25,7 @@
 :- use_module(library(settings)).
 :- use_module(library(string_ext)).
 :- use_module(library(uri/uri_ext)).
+:- use_module(library(yall)).
 
 :- dynamic
     html:handler_description/2,
@@ -91,7 +92,7 @@
      member(Dict2, Dicts),
      (
        _{file: File, name: Name} :< Dict2,
-       rdf_global_id(graph:Name, G),
+       rdf_prefix_iri(graph:Name, G),
        hdt_init(File, G)
      )
    ).
@@ -197,7 +198,7 @@ hdt_method(Request, Method, MediaTypes) :-
   ).
 
 graph_media_type(G, media(text/html,_)) :-
-  rdf_global_id(graph:Name, G),
+  rdf_prefix_iri(graph:Name, G),
   html_page(
     hdt(_,["Graph",Name]),
     [],
@@ -263,7 +264,7 @@ graph_row(G) -->
     hdt_graph(Hdt, G),
     % name
     http_link_to_id(hdt_handler, [graph(G)], GraphUri),
-    rdf_global_id(graph:Name, G),
+    rdf_prefix_iri(graph:Name, G),
     % number of triples
     http_link_to_id(triple_handler, [graph(G)], TriplesUri),
     hdt_triple_count(Hdt, _, _, _, NumTriples),
@@ -468,7 +469,7 @@ term_media_type(Role, G, Page, media(text/html,_)) :-
     [\html_pagination_result(Page, term_table(G))]
   ).
 
-term_table(G, Terms) -->
+term_table(G, Terms) -->{gtrace},
   html(ul(\html_maplist(term_row(G), Terms))).
 
 term_row(G, Term) -->
@@ -481,7 +482,7 @@ term_row(G, Term) -->
   },
   html(
     li([
-      \html_term_link(Term),
+      \rdf_html_term(Term, _{format: ntuples}),
       " ",
       a(href=UriS, "(subject)"),
       " ",
@@ -679,11 +680,21 @@ triple_media_type(_, Page, media(application/'n-triples',_)) :-
 % /triple: GET,HEAD: text/html
 triple_media_type(G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
-  rdf_global_id(graph:GLocal, G),
+  rdf_prefix_iri(graph:GLocal, G),
   html_page(
     hdt(Page,["Triples",GLocal]),
     [],
-    [\html_pagination_result(Page, rdf_html_triple_table(Page.uri, G))]
+    [
+      \html_pagination_result(
+        Page,
+        [Triples]>>rdf_html_triple_table(
+          Page.uri,
+          G,
+          Triples,
+          _{format: ntuples}
+        )
+      )
+    ]
   ).
 
 
@@ -811,7 +822,7 @@ triple_id_media_type(_, Page, media(application/json,_)) :-
 % /triple/id: GET,HEAD: text/html
 triple_id_media_type(G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
-  rdf_global_id(graph:GLocal, G),
+  rdf_prefix_iri(graph:GLocal, G),
   html_page(
     hdt(Page,["Triples","Identifiers",GLocal]),
     [],
@@ -889,7 +900,7 @@ arg_to_term_(_, _, Atom, Term) :-
 % Expansion of commonly used prefixes.
 arg_to_term_(_, _, Atom, Iri) :-
   atomic_list_concat([Prefix,Local], :, Atom),
-  rdf_global_id(Prefix:Local, Iri), !.
+  rdf_prefix_iri(Prefix:Local, Iri), !.
 arg_to_term_(_, _, Atom, _) :-
   throw(error(type_error(rdf_term,Atom))).
 
@@ -1157,32 +1168,3 @@ user:head(hdt(Page,Subtitles), Content_0) -->
 
 user:body(hdt(_,_), Content_0) -->
   html(body([\navbar("HDT-Server", \menu, "")|Content_0])).
-
-
-
-%! html_term(+Term:compound)// is det.
-
-html_term(literal(type(D,Lex))) --> !,
-  html(["\"",Lex,"\"^^<",D,">"]).
-html_term(literal(lang(LTag,Lex))) --> !,
-  html(["\"",Lex,"\"@",LTag]).
-html_term(Atom) -->
-  html(Atom).
-
-
-
-%! html_term_link(+Term:compound)// is det.
-
-html_term_link(SemLit) -->
-  {synlit_semlit(SynLit, SemLit)}, !,
-  html_term_link(SynLit).
-html_term_link(BNode) -->
-  {rdf_is_bnode(BNode)}, !,
-  html(BNode).
-html_term_link(Iri) -->
-  {rdf_is_iri(Iri)}, !,
-  html(a(href=Iri, Iri)).
-html_term_link(literal(lang(LTag,Lex))) --> !,
-  html(["\"",Lex,"\"@",LTag]).
-html_term_link(literal(type(D,Lex))) -->
-  html(["\"",Lex,"\"^^<",a(href=D, D),">"]).
