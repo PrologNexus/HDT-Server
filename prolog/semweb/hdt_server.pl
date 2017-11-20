@@ -3,7 +3,7 @@
 /** <module> HDT server
 
 @author Wouter Beek
-@version 2017/05-2017/10
+@version 2017/05-2017/11
 */
 
 :- use_module(library(aggregate)).
@@ -23,7 +23,6 @@
 :- use_module(library(semweb/rdf_api)).
 :- use_module(library(semweb/rdf_export)).
 :- use_module(library(settings)).
-:- use_module(library(string_ext)).
 :- use_module(library(uri/uri_ext)).
 :- use_module(library(yall)).
 
@@ -137,7 +136,7 @@ html:menu_item(triple, "Triples").
   html:menu_item(triple, triple_handler, "Triples").
   html:menu_item(triple, triple_id_handler, "Triples IDs").
 
-http:status_page(not_found(Uri), _Context, Dom) :-
+http:status_page(not_found(Uri), _, Dom) :-
   phrase(
     page(
       hdt(_,["Path Not Found",Uri]),
@@ -153,23 +152,6 @@ http:status_page(not_found(Uri), _Context, Dom) :-
 :- set_setting(http:products, ['HDT-Server'-'v0.0.4']).
 
 
-
-
-
-% 404
-'404_handler'(Request) :-
-  rest_method(Request, '404_method').
-
-'404_method'(Method, MediaTypes) :-
-  http_is_get(Method),
-  rest_media_type(MediaTypes, '404_media_type').
-
-'404_media_type'(media(text/html,_)) :-
-  html_page(
-    hdt(_,[]),
-    [],
-    ["404"]
-  ).
 
 
 
@@ -197,6 +179,7 @@ hdt_method(Request, Method, MediaTypes) :-
   ;   rest_media_type(MediaTypes, graph_media_type(G))
   ).
 
+% /: GET,HEAD: text/html
 graph_media_type(G, media(text/html,_)) :-
   rdf_prefix_iri(graph:Name, G),
   html_page(
@@ -1077,6 +1060,8 @@ http_param(object, [
   description("Filter results with this object term or identifier."),
   optional(true)
 ]).
+http_param(p, Options) :-
+  http_param(predicate, Options).
 http_param(page, [
   default(1),
   description("The page number from the results set."),
@@ -1089,8 +1074,6 @@ http_param(page_size, [
 ]) :-
   setting(pagination:default_page_size, DefaultPageSize),
   setting(pagination:maximum_page_size, MaxPageSize).
-http_param(p, Options) :-
-  http_param(predicate, Options).
 http_param(predicate, [
   atom,
   description("Filter results with this predicate term or identifier."),
@@ -1151,7 +1134,7 @@ http_params(triple_id_handler, [g,graph,o,object,page,page_size,p,predicate,s,
 % HTML STYLE %
 
 user:head(hdt(Page,Subtitles), Content_0) -->
-  {string_list_concat(["HDT-Server"|Subtitles], " ― ", Title)},
+  {atomics_to_string(["HDT-Server"|Subtitles], " ― ", Title)},
   html(
     head([
       \html_root_attribute(lang, en),
