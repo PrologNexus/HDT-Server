@@ -85,16 +85,6 @@
                 [methods([get,head,options])]).
 
 :- initialization
-   conf_json(Dict1),
-   get_dict(graphs, Dict1, Dicts),
-   forall(
-     member(Dict2, Dicts),
-     (
-       _{file: File, name: Name} :< Dict2,
-       rdf_prefix_iri(graph:Name, G),
-       hdt_init(File, G)
-     )
-   ).
 
 :- multifile
     html:handler_description/2,
