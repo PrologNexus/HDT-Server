@@ -3,7 +3,7 @@
 /** <module> HDT server
 
 @author Wouter Beek
-@version 2017/05-2017/11
+@version 2017/05-2017/12
 */
 
 :- use_module(library(aggregate)).
@@ -29,7 +29,10 @@
 :- dynamic
     html:handler_description/2,
     html:menu_item/2,
-    html:menu_item/3.
+    html:menu_item/3,
+    http:media_types/2,
+    http:param/2,
+    http:params/2.
 
 :- http_handler(/, hdt_handler,
                 [methods([get,head,options])]).
@@ -84,8 +87,6 @@
 :- http_handler(root(triple/id), triple_id_handler,
                 [methods([get,head,options])]).
 
-:- initialization
-
 :- multifile
     html:handler_description/2,
     html:menu_item/2,
@@ -126,6 +127,141 @@ html:menu_item(triple, "Triples").
   html:menu_item(triple, triple_handler, "Triples").
   html:menu_item(triple, triple_id_handler, "Triples IDs").
 
+http:media_types(hdt_handler, [media(text/html,[])]).
+http:media_types(doc_handler, [media(text/html,[])]).
+http:media_types(graph_handler, [media(application/json,[]),
+                                 media(text/html,[])]).
+http:media_types(object_handler, [media(application/json,[]),
+                                  media(text/html,[])]).
+http:media_types(object_count_handler, [media(application/json,[]),
+                                        media(text/html,[])]).
+http:media_types(object_id_handler, [media(application/json,[]),
+                                     media(text/html,[])]).
+http:media_types(node_handler, [media(application/json,[]),
+                                media(text/html,[])]).
+http:media_types(node_count_handler, [media(application/json,[]),
+                                      media(text/html,[])]).
+http:media_types(node_id_handler, [media(application/json,[]),
+                                   media(text/html,[])]).
+http:media_types(predicate_handler, [media(application/json,[]),
+                                     media(text/html,[])]).
+http:media_types(predicate_count_handler, [media(application/json,[]),
+                                           media(text/html,[])]).
+http:media_types(predicate_id_handler, [media(application/json,[]),
+                                        media(text/html,[])]).
+http:media_types(shared_handler, [media(application/json,[]),
+                                  media(text/html,[])]).
+http:media_types(shared_count_handler, [media(application/json,[]),
+                                        media(text/html,[])]).
+http:media_types(shared_id_handler, [media(application/json,[]),
+                                     media(text/html,[])]).
+http:media_types(sink_handler, [media(application/json,[]),
+                                media(text/html,[])]).
+http:media_types(sink_count_handler, [media(application/json,[]),
+                                      media(text/html,[])]).
+http:media_types(sink_id_handler, [media(application/json,[]),
+                                   media(text/html,[])]).
+http:media_types(source_handler, [media(application/json,[]),
+                                  media(text/html,[])]).
+http:media_types(source_count_handler, [media(application/json,[]),
+                                        media(text/html,[])]).
+http:media_types(source_id_handler, [media(application/json,[]),
+                                     media(text/html,[])]).
+http:media_types(subject_handler, [media(application/json,[]),
+                                   media(text/html,[])]).
+http:media_types(subject_count_handler, [media(application/json,[]),
+                                         media(text/html,[])]).
+http:media_types(subject_id_handler, [media(application/json,[]),
+                                      media(text/html,[])]).
+http:media_types(triple_handler, [media(application/'n-triples',[]),
+                                  media(application/'n-quads',[]),
+                                  media(text/html,[])]).
+http:media_types(triple_count_handler, [media(application/json,[]),
+                                        media(text/html,[])]).
+http:media_types(triple_id_handler, [media(application/json,[]),
+                                     media(text/html,[]),
+                                     media(text/'vnd.graphviz',[])]).
+
+http:param(count, [
+  boolean,
+  default(false),
+  description("Return the number of results.")
+]).
+http:param(g, Options) :-
+  http:param(graph, Options).
+http:param(graph, [
+  atom,
+  default(G),
+  description("The named graph from which results are retrieved.  When absent, results are retrieved from the default graph.")
+]) :-
+  hdt_default_graph(G).
+http:param(id, [
+  boolean,
+  default(false),
+  description("Return HDT identifiers i.o. RDF terms.")
+]).
+http:param(o, Options) :-
+  http:param(object, Options).
+http:param(object, [
+  atom,
+  description("Filter results with this object term or identifier."),
+  optional(true)
+]).
+http:param(p, Options) :-
+  http:param(predicate, Options).
+http:param(predicate, [
+  atom,
+  description("Filter results with this predicate term or identifier."),
+  optional(true)
+]).
+http:param(prefix, [
+  atom,
+  description("Filter for terms that have this prefix."),
+  optional(true)
+]).
+http:param(random, [
+  boolean,
+  default(false),
+  description("Retrieve a randomly chosen result.  Default is `false'.")
+]).
+http:param(s, Options) :-
+  http:param(subject, Options).
+http:param(subject, [
+  atom,
+  description("Filter results with this subject term or identifier."),
+  optional(true)
+]).
+
+http:params(hdt_handler, [page,page_size]).
+http:params(doc_handler, []).
+http:params(graph_handler, [page,page_size]).
+http:params(node_handler, [g,graph,page,page_size,prefix,random]).
+http:params(node_count_handler, [g,graph]).
+http:params(node_id_handler, [g,graph,page,page_size,prefix,random]).
+http:params(object_handler, [g,graph,page,page_size,prefix,random]).
+http:params(object_count_handler, [g,graph]).
+http:params(object_id_handler, [g,graph,page,page_size,prefix,random]).
+http:params(predicate_handler, [g,graph,page,page_size,prefix,random]).
+http:params(predicate_count_handler, [g,graph]).
+http:params(predicate_id_handler, [g,graph,page,page_size,prefix,random]).
+http:params(shared_handler, [g,graph,page,page_size,prefix,random]).
+http:params(shared_count_handler, [g,graph]).
+http:params(shared_id_handler, [g,graph,page,page_size,prefix,random]).
+http:params(sink_handler, [g,graph,page,page_size,prefix,random]).
+http:params(sink_count_handler, [g,graph]).
+http:params(sink_id_handler, [g,graph,page,page_size,prefix,random]).
+http:params(source_handler, [g,graph,page,page_size,prefix,random]).
+http:params(source_count_handler, [g,graph]).
+http:params(source_id_handler, [g,graph,page,page_size,prefix,random]).
+http:params(subject_handler, [g,graph,page,page_size,prefix,random]).
+http:params(subject_count_handler, [g,graph]).
+http:params(subject_id_handler, [g,graph,page,page_size,prefix,random]).
+http:params(triple_handler, [g,graph,o,object,page,page_size,p,predicate,s,
+                             subject]).
+http:params(triple_count_handler, [g,graph,o,object,p,predicate,s,subject]).
+http:params(triple_id_handler, [g,graph,o,object,page,page_size,p,predicate,s,
+                                subject]).
+
 http:status_page(not_found(Uri), _, Dom) :-
   phrase(
     page(
@@ -139,7 +275,7 @@ http:status_page(not_found(Uri), _, Dom) :-
     Dom
   ).
 
-:- set_setting(http:products, ['HDT-Server'-'v0.0.4']).
+:- set_setting(http:products, ["HDT-Server"-"v0.0.5"]).
 
 
 
@@ -155,13 +291,13 @@ hdt_method(Request, Method, MediaTypes) :-
   http_parameters(
     Request,
     [graph(G,[optional(true)]),page(PageNumber),page_size(PageSize)],
-    [attribute_declarations(http_param)]
+    [attribute_declarations(http:param)]
   ),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
   (   var(G)
   ->  pagination_bulk(
-        hdt_graphs_,
+        [Gs]>>aggregate_all(set(G0), hdt_graph(G0), Gs),
         _{page_number: PageNumber, page_size: PageSize, uri: Uri},
         Page
       ),
@@ -171,9 +307,8 @@ hdt_method(Request, Method, MediaTypes) :-
 
 % /: GET,HEAD: text/html
 graph_media_type(G, media(text/html,_)) :-
-  rdf_prefix_iri(graph:Name, G),
   html_page(
-    hdt(_,["Graph",Name]),
+    hdt(_,["Graph"]),
     [],
     [
       \table(
@@ -228,7 +363,7 @@ hdt_media_type(Page, media(text/html,_)) :-
 
 graphs_table(Gs) -->
   table(
-    \table_header_row(["RDF Graph","Triples","Modified","Source"]),
+    \table_header_row(["Graph","Triples","Modified","Source"]),
     \html_maplist(graph_row, Gs)
   ).
 
@@ -237,7 +372,6 @@ graph_row(G) -->
     hdt_graph(Hdt, G),
     % name
     http_link_to_id(hdt_handler, [graph(G)], GraphUri),
-    rdf_prefix_iri(graph:Name, G),
     % number of triples
     http_link_to_id(triple_handler, [graph(G)], TriplesUri),
     hdt_triple_count(Hdt, _, _, _, NumTriples),
@@ -249,7 +383,7 @@ graph_row(G) -->
   },
   html(
     tr([
-      td(a(href=GraphUri,Name)),
+      td(a(href=GraphUri,code(G))),
       td(a(href=TriplesUri,\html_thousands(NumTriples))),
       td(Modified),
       td(Source)
@@ -391,7 +525,7 @@ term_method(Request, Role, Method, MediaTypes) :-
       prefix(Prefix),
       random(Random)
     ],
-    [attribute_declarations(http_param)]
+    [attribute_declarations(http:param)]
   ),
   random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
@@ -447,7 +581,7 @@ term_table(G, Terms) -->{gtrace},
 
 term_row(G, Term) -->
   {
-    (rdf_equal(graph:default, G) -> T = [] ; T = [graph(G)]),
+    (hdt_default_graph(G) -> T = [] ; T = [graph(G)]),
     rdf_term_to_atom(Term, Atom),
     http_link_to_id(triple_handler, [subject(Atom)|T], UriS),
     http_link_to_id(triple_handler, [predicate(Atom)|T], UriP),
@@ -477,7 +611,7 @@ term_count_method(Request, Role, Method, MediaTypes) :-
   http_parameters(
     Request,
     [g(G2),graph(G1)],
-    [attribute_declarations(http_param)]
+    [attribute_declarations(http:param)]
   ),
   alt_atom_(G1, G2, G),
   hdt_graph(Hdt, G),
@@ -511,7 +645,7 @@ term_id_method(Request, Role, Method, MediaTypes) :-
       prefix(Prefix),
       random(Random)
     ],
-    [attribute_declarations(http_param)]
+    [attribute_declarations(http:param)]
   ),
   random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
@@ -568,7 +702,7 @@ html_term_id_table(G, Ids) -->
 html_term_id_row(G, id(Role,Id)) -->
   {    role_triple_role(Role, TripleRole),
     H =.. [TripleRole,Id],
-    (rdf_equal(graph:default, G) -> T = [] ; T = [graph(G)]),
+    (hdt_default_graph(G) -> T = [] ; T = [graph(G)]),
     http_link_to_id(triple_id_handler, [H|T], Uri)
   },
   html(li([Id," ",a(href=Uri, ["(",TripleRole,")"])])).
@@ -601,7 +735,7 @@ triple_method(Request, Method, MediaTypes) :-
       s(SAtom2),
       subject(SAtom1)
     ],
-    [attribute_declarations(http_param)]
+    [attribute_declarations(http:param)]
   ),
   random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
@@ -691,7 +825,7 @@ triple_count_method(Request, Method, MediaTypes) :-
       s(SAtom2),
       subject(SAtom1)
     ],
-    [attribute_declarations(http_param)]
+    [attribute_declarations(http:param)]
   ),
   maplist(
     alt_atom_,
@@ -740,7 +874,7 @@ triple_id_method(Request, Method, MediaTypes) :-
       s(SAtom2),
       subject(SAtom1)
     ],
-    [attribute_declarations(http_param)]
+    [attribute_declarations(http:param)]
   ),
   random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
@@ -879,13 +1013,6 @@ arg_to_term_(_, _, Atom, _) :-
 
 
 
-%! hdt_graphs_(-Gs:ordset(atom)) is det.
-
-hdt_graphs_(Gs) :-
-  aggregate_all(set(G), hdt_graph(G), Gs).
-
-
-
 %! hdt_term_id_(+Hdt:blob, +Role:atom, -Id:compound) is nondet.
 
 hdt_term_id_(Hdt, Role, id(LeafRole,Id)) :-
@@ -957,165 +1084,6 @@ random_page_number(true, PageNumber) :-
   PageNumber > 1, !,
   throw(error(type_error(random_page,PageNumber))).
 random_page_number(_, _).
-
-
-
-
-
-% HTTP MEDIA TYPES %
-
-http_media_types(hdt_handler, [media(text/html,[])]).
-http_media_types(doc_handler, [media(text/html,[])]).
-http_media_types(graph_handler, [media(application/json,[]),
-                                 media(text/html,[])]).
-http_media_types(object_handler, [media(application/json,[]),
-                                  media(text/html,[])]).
-http_media_types(object_count_handler, [media(application/json,[]),
-                                        media(text/html,[])]).
-http_media_types(object_id_handler, [media(application/json,[]),
-                                     media(text/html,[])]).
-http_media_types(node_handler, [media(application/json,[]),
-                                media(text/html,[])]).
-http_media_types(node_count_handler, [media(application/json,[]),
-                                      media(text/html,[])]).
-http_media_types(node_id_handler, [media(application/json,[]),
-                                   media(text/html,[])]).
-http_media_types(predicate_handler, [media(application/json,[]),
-                                     media(text/html,[])]).
-http_media_types(predicate_count_handler, [media(application/json,[]),
-                                           media(text/html,[])]).
-http_media_types(predicate_id_handler, [media(application/json,[]),
-                                        media(text/html,[])]).
-http_media_types(shared_handler, [media(application/json,[]),
-                                  media(text/html,[])]).
-http_media_types(shared_count_handler, [media(application/json,[]),
-                                        media(text/html,[])]).
-http_media_types(shared_id_handler, [media(application/json,[]),
-                                     media(text/html,[])]).
-http_media_types(sink_handler, [media(application/json,[]),
-                                media(text/html,[])]).
-http_media_types(sink_count_handler, [media(application/json,[]),
-                                      media(text/html,[])]).
-http_media_types(sink_id_handler, [media(application/json,[]),
-                                   media(text/html,[])]).
-http_media_types(source_handler, [media(application/json,[]),
-                                  media(text/html,[])]).
-http_media_types(source_count_handler, [media(application/json,[]),
-                                        media(text/html,[])]).
-http_media_types(source_id_handler, [media(application/json,[]),
-                                     media(text/html,[])]).
-http_media_types(subject_handler, [media(application/json,[]),
-                                   media(text/html,[])]).
-http_media_types(subject_count_handler, [media(application/json,[]),
-                                         media(text/html,[])]).
-http_media_types(subject_id_handler, [media(application/json,[]),
-                                      media(text/html,[])]).
-http_media_types(triple_handler, [media(application/'n-triples',[]),
-                                  media(application/'n-quads',[]),
-                                  media(text/html,[])]).
-http_media_types(triple_count_handler, [media(application/json,[]),
-                                        media(text/html,[])]).
-http_media_types(triple_id_handler, [media(application/json,[]),
-                                     media(text/html,[]),
-                                     media(text/'vnd.graphviz',[])]).
-
-
-
-
-
-% HTTP PARAMETERS %
-
-http_param(count, [
-  boolean,
-  default(false),
-  description("Return the number of results.")
-]).
-http_param(g, Options) :-
-  http_param(graph, Options).
-http_param(graph, [
-  atom,
-  default(G),
-  description("The named graph from which results are retrieved.  When absent, results are retrieved from the default graph.")
-]) :-
-  rdf_equal(graph:default, G).
-http_param(id, [
-  boolean,
-  default(false),
-  description("Return HDT identifiers i.o. RDF terms.")
-]).
-http_param(o, Options) :-
-  http_param(object, Options).
-http_param(object, [
-  atom,
-  description("Filter results with this object term or identifier."),
-  optional(true)
-]).
-http_param(p, Options) :-
-  http_param(predicate, Options).
-http_param(page, [
-  default(1),
-  description("The page number from the results set."),
-  positive_integer
-]).
-http_param(page_size, [
-  between(1, MaxPageSize),
-  default(DefaultPageSize),
-  description("The number of results per full result set page.")
-]) :-
-  setting(pagination:default_page_size, DefaultPageSize),
-  setting(pagination:maximum_page_size, MaxPageSize).
-http_param(predicate, [
-  atom,
-  description("Filter results with this predicate term or identifier."),
-  optional(true)
-]).
-http_param(prefix, [
-  atom,
-  description("Filter for terms that have this prefix."),
-  optional(true)
-]).
-http_param(random, [
-  boolean,
-  default(false),
-  description("Retrieve a randomly chosen result.  Default is `false'.")
-]).
-http_param(s, Options) :-
-  http_param(subject, Options).
-http_param(subject, [
-  atom,
-  description("Filter results with this subject term or identifier."),
-  optional(true)
-]).
-
-http_params(hdt_handler, [page,page_size]).
-http_params(doc_handler, []).
-http_params(graph_handler, [page,page_size]).
-http_params(node_handler, [g,graph,page,page_size,prefix,random]).
-http_params(node_count_handler, [g,graph]).
-http_params(node_id_handler, [g,graph,page,page_size,prefix,random]).
-http_params(object_handler, [g,graph,page,page_size,prefix,random]).
-http_params(object_count_handler, [g,graph]).
-http_params(object_id_handler, [g,graph,page,page_size,prefix,random]).
-http_params(predicate_handler, [g,graph,page,page_size,prefix,random]).
-http_params(predicate_count_handler, [g,graph]).
-http_params(predicate_id_handler, [g,graph,page,page_size,prefix,random]).
-http_params(shared_handler, [g,graph,page,page_size,prefix,random]).
-http_params(shared_count_handler, [g,graph]).
-http_params(shared_id_handler, [g,graph,page,page_size,prefix,random]).
-http_params(sink_handler, [g,graph,page,page_size,prefix,random]).
-http_params(sink_count_handler, [g,graph]).
-http_params(sink_id_handler, [g,graph,page,page_size,prefix,random]).
-http_params(source_handler, [g,graph,page,page_size,prefix,random]).
-http_params(source_count_handler, [g,graph]).
-http_params(source_id_handler, [g,graph,page,page_size,prefix,random]).
-http_params(subject_handler, [g,graph,page,page_size,prefix,random]).
-http_params(subject_count_handler, [g,graph]).
-http_params(subject_id_handler, [g,graph,page,page_size,prefix,random]).
-http_params(triple_handler, [g,graph,o,object,page,page_size,p,predicate,s,
-                             subject]).
-http_params(triple_count_handler, [g,graph,o,object,p,predicate,s,subject]).
-http_params(triple_id_handler, [g,graph,o,object,page,page_size,p,predicate,s,
-                                subject]).
 
 
 
