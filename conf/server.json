@@ -2,7 +2,7 @@
   "graphs": [
     {
       "file": "/home/wbeek/data/wikidata.hdt",
-      "name": "default"
+      "default": true
     }
   ]
 }

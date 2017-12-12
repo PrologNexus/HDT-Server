@@ -256,11 +256,9 @@ http:params(source_id_handler, [g,graph,page,page_size,prefix,random]).
 http:params(subject_handler, [g,graph,page,page_size,prefix,random]).
 http:params(subject_count_handler, [g,graph]).
 http:params(subject_id_handler, [g,graph,page,page_size,prefix,random]).
-http:params(triple_handler, [g,graph,o,object,page,page_size,p,predicate,s,
-                             subject]).
+http:params(triple_handler, [g,graph,o,object,page,page_size,p,predicate,s,subject]).
 http:params(triple_count_handler, [g,graph,o,object,p,predicate,s,subject]).
-http:params(triple_id_handler, [g,graph,o,object,page,page_size,p,predicate,s,
-                                subject]).
+http:params(triple_id_handler, [g,graph,o,object,page,page_size,p,predicate,s,subject]).
 
 http:status_page(not_found(Uri), _, Dom) :-
   phrase(
@@ -280,6 +278,8 @@ http:status_page(not_found(Uri), _, Dom) :-
 
 
 
+
+% ROOT %
 
 % /
 hdt_handler(Request) :-
@@ -392,6 +392,10 @@ graph_row(G) -->
 
 
 
+
+
+% DOCUMENTATION %
+
 % /doc
 doc_handler(Request) :-
   rest_method(Request, doc_method).
@@ -435,6 +439,10 @@ doc_media_type(media(text/html,_)) :-
   ).
 
 
+
+
+
+% TERMS %
 
 % /node
 node_handler(Request) :-
@@ -561,25 +569,29 @@ term_method(Request, Role, Method, MediaTypes) :-
         Page
       )
   ),
-  rest_media_type(MediaTypes, term_media_type(Role, G, Page)).
+  rest_media_type(MediaTypes, term_media_type(Uri, Role, G, Page)).
 
 % /term: GET,HEAD: application/json
-term_media_type(_, _, Page, media(application/json,_)) :-
+term_media_type(_, _, _, Page, media(application/json,_)) :-
   http_pagination_json(Page).
 % /term: GET,HEAD: text/html
-term_media_type(Role, G, Page, media(text/html,_)) :-
+term_media_type(Uri, Role, G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
   atom_capitalize(Role, CRole),
   html_page(
     hdt(Page,[CRole]),
     [],
-    [\html_pagination_result(Page, term_table(G))]
+    [\html_pagination_result(Page, html_term_table(Uri, G))]
   ).
 
-term_table(G, Terms) -->{gtrace},
-  html(ul(\html_maplist(term_row(G), Terms))).
+html_term_table(Uri, G, Terms) -->
+  {uri_encode(Uri, EncodeUri)},
+  html([
+    a(href=EncodeUri, "[encode]"),
+    ul(\html_maplist(html_term_row(G), Terms))
+  ]).
 
-term_row(G, Term) -->
+html_term_row(G, Term) -->
   {
     (hdt_default_graph(G) -> T = [] ; T = [graph(G)]),
     rdf_term_to_atom(Term, Atom),
@@ -591,11 +603,11 @@ term_row(G, Term) -->
     li([
       \rdf_html_term(Term, _{format: ntuples}),
       " ",
-      a(href=UriS, "(subject)"),
+      a(href=UriS, "(s)"),
       " ",
-      a(href=UriP, "(predicate)"),
+      a(href=UriP, "(p)"),
       " ",
-      a(href=UriO, "(object)")
+      a(href=UriO, "(o)")
     ])
   ).
 
@@ -681,37 +693,62 @@ term_id_method(Request, Role, Method, MediaTypes) :-
         Page
       )
   ),
-  rest_media_type(MediaTypes, term_id_media_type(Role, G, Page)).
+  rest_media_type(MediaTypes, term_id_media_type(Uri, Role, G, Page)).
 
 % /term/id: GET,HEAD: application/json
-term_id_media_type(_, _, Page, media(application/json,_)) :-
+term_id_media_type(_, _, _, Page, media(application/json,_)) :-
   http_pagination_json(Page).
 % /term/id: GET,HEAD: text/html
-term_id_media_type(Role, G, Page, media(text/html,_)) :-
+term_id_media_type(Uri, Role, G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
   atom_capitalize(Role, CRole),
   html_page(
     hdt(Page,[CRole]),
     [],
-    [\html_pagination_result(Page, html_term_id_table(G))]
+    [\html_pagination_result(Page, html_term_id_table(Uri, G))]
   ).
 
-html_term_id_table(G, Ids) -->
-  html(ul(\html_maplist(html_term_id_row(G), Ids))).
+html_term_id_table(Uri, G, Ids) -->
+  {uri_decode(Uri, DecodeUri)},
+  html([
+    a(href=DecodeUri, "[decode]"),
+    ul(\html_maplist(html_term_id_row(G), Ids))
+  ]).
 
 html_term_id_row(G, id(Role,Id)) -->
-  {    role_triple_role(Role, TripleRole),
-    H =.. [TripleRole,Id],
-    (hdt_default_graph(G) -> T = [] ; T = [graph(G)]),
-    http_link_to_id(triple_id_handler, [H|T], Uri)
-  },
-  html(li([Id," ",a(href=Uri, ["(",TripleRole,")"])])).
+  {(hdt_default_graph(G) -> T = [] ; T = [graph(G)])},
+  html(
+    li([
+      Id,
+      \html_term_id_subject_link(Role, Id, T),
+      \html_term_id_predicate_link(Role, Id, T),
+      \html_term_id_object_link(Role, Id, T)
+    ])
+  ).
 
-role_triple_role(sink, object).
-role_triple_role(source, subject).
-role_triple_role(Role, Role).
+html_term_id_subject_link(Role, Id, T) -->
+  {role_subrole(Role, subject)}, !,
+  {http_link_to_id(triple_id_handler, [subject(Id)|T], Uri)},
+  html([" ",a(href=Uri, "(s)")]).
+html_term_id_subject_link(_, _, _) --> "".
+
+html_term_id_predicate_link(Role, Id, T) -->
+  {role_subrole(Role, predicate)}, !,
+  {http_link_to_id(triple_id_handler, [predicate(Id)|T], Uri)},
+  html([" ",a(href=Uri, "(s)")]).
+html_term_id_predicate_link(_, _, _) --> "".
+
+html_term_id_object_link(Role, Id, T) -->
+  {role_subrole(Role, object)}, !,
+  {http_link_to_id(triple_id_handler, [object(Id)|T], Uri)},
+  html([" ",a(href=Uri, "(s)")]).
+html_term_id_object_link(_, _, _) --> "".
 
 
+
+
+
+% TRIPLES %
 
 % /triple
 triple_handler(Request) :-
@@ -776,22 +813,23 @@ triple_method(Request, Method, MediaTypes) :-
         Page
       )
   ),
-  rest_media_type(MediaTypes, triple_media_type(G, Page)).
+  rest_media_type(MediaTypes, triple_media_type(Uri, G, Page)).
 
 % /triple: GET,HEAD: application/n-triples
-triple_media_type(_, Page, media(application/'n-triples',_)) :-
+triple_media_type(_, _, Page, media(application/'n-triples',_)) :-
   format("Content-Type: application/n-triples\n"),
   http_pagination_header(Page),
   nl,
   maplist(rdf_write_triple(current_output), Page.results).
 % /triple: GET,HEAD: text/html
-triple_media_type(G, Page, media(text/html,_)) :-
+triple_media_type(Uri, G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
-  rdf_prefix_iri(graph:GLocal, G),
+  uri_encode(Uri, EncodeUri),
   html_page(
-    hdt(Page,["Triples",GLocal]),
+    hdt(Page,["Triples"]),
     [],
     [
+      a(href=EncodeUri, "[encode]"),
       \html_pagination_result(
         Page,
         [Triples]>>rdf_html_triple_table(
@@ -929,9 +967,8 @@ triple_id_media_type(_, Page, media(application/json,_)) :-
 % /triple/id: GET,HEAD: text/html
 triple_id_media_type(G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
-  rdf_prefix_iri(graph:GLocal, G),
   html_page(
-    hdt(Page,["Triples","Identifiers",GLocal]),
+    hdt(Page,["Triples","Identifiers"]),
     [],
     [\html_pagination_result(Page, html_triple_id_table(Page.uri, G))]
   ).
@@ -943,10 +980,14 @@ write_gml_triple(rdf(SId,PId,OId)) :-
   format("edge [ label ~a source ~a target ~a ]\n", [PId,SId,OId]).
 
 html_triple_id_table(Uri, G, Triples) -->
-  table(
-    \table_header_row(["Subject","Predicate","Object"]),
-    \html_maplist(html_triple_id_row(Uri, G), Triples)
-  ).
+  {uri_decode(Uri, DecodeUri)},
+  html([
+    a(href=DecodeUri, "[decode]"),
+    \table(
+      \table_header_row(["Subject","Predicate","Object"]),
+      \html_maplist(html_triple_id_row(Uri, G), Triples)
+    )
+  ]).
 
 html_triple_id_row(Uri, G, rdf(id(SRole,SId),id(PRole,PId),id(ORole,OId))) -->
   {
@@ -1084,6 +1125,22 @@ random_page_number(true, PageNumber) :-
   PageNumber > 1, !,
   throw(error(type_error(random_page,PageNumber))).
 random_page_number(_, _).
+
+
+
+%! uri_decode(+Uri:atom, -DecodeUri:atom) is det.
+
+uri_decode(Uri1, Uri2) :-
+  uri_comps(Uri1, uri(Scheme,Authority,[Segment,id],Query,_)),
+  uri_comps(Uri2, uri(Scheme,Authority,[Segment],Query,_)).
+
+
+
+%! uri_encode(+Uri:atom, -EncodeUri:atom) is det.
+
+uri_encode(Uri1, Uri2) :-
+  uri_comps(Uri1, uri(Scheme,Authority,[Segment],Query,_)),
+  uri_comps(Uri2, uri(Scheme,Authority,[Segment,id],Query,_)).
 
 
 
