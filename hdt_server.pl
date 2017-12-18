@@ -1039,18 +1039,11 @@ arg_to_term_(_, _, Var, Var) :-
 arg_to_term_(Hdt, Role, Atom, Term) :-
   atom_number(Atom, Id), !,
   hdt_term_id(Hdt, Role, Term, Id).
-% a
-arg_to_term_(_, _, a, Iri) :- !,
-  rdf_equal(rdf:type, Iri).
-% HDT atom → RDF term
-arg_to_term_(_, _, Atom, Term) :-
-  rdf_atom_to_term(Atom, Term).
-% Expansion of commonly used prefixes.
-arg_to_term_(_, _, Atom, Iri) :-
-  atomic_list_concat([Prefix,Local], :, Atom),
-  rdf_prefix_iri(Prefix:Local, Iri), !.
-arg_to_term_(_, _, Atom, _) :-
-  throw(error(type_error(rdf_term,Atom))).
+% Turtle 1.1 notation for RDF terms
+arg_to_term_(Atom, Term) :-
+  rdf_atom_to_term(Atom, Term), !.
+arg_to_term_(Atom, _) :-
+  type_error(rdf_term, Atom).
 
 
 
@@ -1123,7 +1116,7 @@ hdt_triple_random_id(Hdt, S, P, O, IdTriple) :-
 
 random_page_number(true, PageNumber) :-
   PageNumber > 1, !,
-  throw(error(type_error(random_page,PageNumber))).
+  type_error(random_page, PageNumber).
 random_page_number(_, _).
 
 
