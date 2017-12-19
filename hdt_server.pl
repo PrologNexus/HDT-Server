@@ -263,7 +263,7 @@ http:params(triple_id_handler, [g,graph,o,object,page,page_size,p,predicate,s,su
 http:status_page(not_found(Uri), _, Dom) :-
   phrase(
     page(
-      hdt(_,["Path Not Found",Uri]),
+      page(_,["Path Not Found",Uri]),
       [],
       [
         h1(["Path Not Found: ",code(Uri)]),
@@ -308,7 +308,7 @@ hdt_method(Request, Method, MediaTypes) :-
 % /: GET,HEAD: text/html
 graph_media_type(G, media(text/html,_)) :-
   html_page(
-    hdt(_,["Graph"]),
+    page(_,["Graph"]),
     [],
     [
       \table(
@@ -356,7 +356,7 @@ hdt_media_type(Page, media(application/json,_)) :-
 hdt_media_type(Page, media(text/html,_)) :-
   http_pagination_header(Page),
   html_page(
-    hdt(_,["Graph","Overview"]),
+    page(_,["Graph","Overview"]),
     [],
     [\html_pagination_result(Page, graphs_table)]
   ).
@@ -408,7 +408,7 @@ doc_method(Method, MediaTypes) :-
 % /doc: GET,HEAD: text/html
 doc_media_type(media(text/html,_)) :-
   html_page(
-    hdt(_,["Documentation"]),
+    page(_,["Documentation"]),
     [],
     [
       \http_doc_handler(hdt_server, node_handler),
@@ -579,7 +579,7 @@ term_media_type(Uri, Role, G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
   atom_capitalize(Role, CRole),
   html_page(
-    hdt(Page,[CRole]),
+    page(Page,[CRole]),
     [],
     [\html_pagination_result(Page, html_term_table(Uri, G))]
   ).
@@ -636,7 +636,7 @@ term_count_media_type(_, Count, media(application/json,_)) :-
 % /term/count: GET,HEAD: text/html
 term_count_media_type(Role, Count, media(text/html,_)) :-
   atom_capitalize(Role, CRole),
-  html_page(hdt(_,["Terms",CRole]), [], [\html_thousands(Count)]).
+  html_page(page(_,["Terms",CRole]), [], [\html_thousands(Count)]).
 
 
 
@@ -703,7 +703,7 @@ term_id_media_type(Uri, Role, G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
   atom_capitalize(Role, CRole),
   html_page(
-    hdt(Page,[CRole]),
+    page(Page,[CRole]),
     [],
     [\html_pagination_result(Page, html_term_id_table(Uri, G))]
   ).
@@ -826,7 +826,7 @@ triple_media_type(Uri, G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
   uri_encode(Uri, EncodeUri),
   html_page(
-    hdt(Page,["Triples"]),
+    page(Page,["Triples"]),
     [],
     [
       a(href=EncodeUri, "[encode]"),
@@ -886,7 +886,7 @@ triple_count_media_type(Count, media(application/json,_)) :-
   http_reply_json(Count).
 % /triple/count: GET,HEAD: text/html
 triple_count_media_type(Count, media(text/html,_)) :-
-  html_page(hdt(_,["Triples","Count"]), [], [\html_thousands(Count)]).
+  html_page(page(_,["Triples","Count"]), [], [\html_thousands(Count)]).
 
 
 
@@ -968,7 +968,7 @@ triple_id_media_type(_, Page, media(application/json,_)) :-
 triple_id_media_type(G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
   html_page(
-    hdt(Page,["Triples","Identifiers"]),
+    page(Page,["Triples","Identifiers"]),
     [],
     [\html_pagination_result(Page, html_triple_id_table(Page.uri, G))]
   ).
@@ -1141,7 +1141,7 @@ uri_encode(Uri1, Uri2) :-
 
 % HTML STYLE %
 
-user:head(hdt(Page,Subtitles), Content_0) -->
+user:head(page(Page,Subtitles), Content_0) -->
   {atomics_to_string(["HDT-Server"|Subtitles], " ― ", Title)},
   html(
     head([
@@ -1157,5 +1157,5 @@ user:head(hdt(Page,Subtitles), Content_0) -->
     ])
   ).
 
-user:body(hdt(_,_), Content_0) -->
+user:body(page(_,_), Content_0) -->
   html(body([\navbar("HDT-Server", \menu, "")|Content_0])).
