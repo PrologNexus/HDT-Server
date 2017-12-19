@@ -218,11 +218,11 @@ http:param(prefix, [
   description("Filter for terms that have this prefix."),
   optional(true)
 ]).
-http:param(random, [
-  boolean,
-  default(false),
-  description("Retrieve a randomly chosen result.  Default is `false'.")
-]).
+%http:param(random, [
+%  boolean,
+%  default(false),
+%  description("Retrieve a randomly chosen result.  Default is `false'.")
+%]).
 http:param(s, Options) :-
   http:param(subject, Options).
 http:param(subject, [
@@ -234,27 +234,27 @@ http:param(subject, [
 http:params(home_handler, [page,page_size]).
 http:params(doc_handler, []).
 http:params(graph_handler, [page,page_size]).
-http:params(node_handler, [g,graph,page,page_size,prefix,random]).
+http:params(node_handler, [g,graph,page,page_size,prefix]).%,random]).
 http:params(node_count_handler, [g,graph]).
-http:params(node_id_handler, [g,graph,page,page_size,prefix,random]).
-http:params(object_handler, [g,graph,page,page_size,prefix,random]).
+http:params(node_id_handler, [g,graph,page,page_size,prefix]).%,random]).
+http:params(object_handler, [g,graph,page,page_size,prefix]).%,random]).
 http:params(object_count_handler, [g,graph]).
-http:params(object_id_handler, [g,graph,page,page_size,prefix,random]).
-http:params(predicate_handler, [g,graph,page,page_size,prefix,random]).
+http:params(object_id_handler, [g,graph,page,page_size,prefix]).%,random]).
+http:params(predicate_handler, [g,graph,page,page_size,prefix]).%,random]).
 http:params(predicate_count_handler, [g,graph]).
-http:params(predicate_id_handler, [g,graph,page,page_size,prefix,random]).
-http:params(shared_handler, [g,graph,page,page_size,prefix,random]).
+http:params(predicate_id_handler, [g,graph,page,page_size,prefix]).%,random]).
+http:params(shared_handler, [g,graph,page,page_size,prefix]).%,random]).
 http:params(shared_count_handler, [g,graph]).
-http:params(shared_id_handler, [g,graph,page,page_size,prefix,random]).
-http:params(sink_handler, [g,graph,page,page_size,prefix,random]).
+http:params(shared_id_handler, [g,graph,page,page_size,prefix]).%,random]).
+http:params(sink_handler, [g,graph,page,page_size,prefix]).%,random]).
 http:params(sink_count_handler, [g,graph]).
-http:params(sink_id_handler, [g,graph,page,page_size,prefix,random]).
-http:params(source_handler, [g,graph,page,page_size,prefix,random]).
+http:params(sink_id_handler, [g,graph,page,page_size,prefix]).%,random]).
+http:params(source_handler, [g,graph,page,page_size,prefix]).%,random]).
 http:params(source_count_handler, [g,graph]).
-http:params(source_id_handler, [g,graph,page,page_size,prefix,random]).
-http:params(subject_handler, [g,graph,page,page_size,prefix,random]).
+http:params(source_id_handler, [g,graph,page,page_size,prefix]).%,random]).
+http:params(subject_handler, [g,graph,page,page_size,prefix]).%,random]).
 http:params(subject_count_handler, [g,graph]).
-http:params(subject_id_handler, [g,graph,page,page_size,prefix,random]).
+http:params(subject_id_handler, [g,graph,page,page_size,prefix]).%,random]).
 http:params(triple_handler, [g,graph,o,object,page,page_size,p,predicate,s,subject]).
 http:params(triple_count_handler, [g,graph,o,object,p,predicate,s,subject]).
 http:params(triple_id_handler, [g,graph,o,object,page,page_size,p,predicate,s,subject]).
@@ -529,12 +529,12 @@ term_method(Request, Role, Method, MediaTypes) :-
       graph(G1),
       page(PageNumber),
       page_size(PageSize),
-      prefix(Prefix),
-      random(Random)
+      prefix(Prefix)%,
+      %random(Random)
     ],
     [attribute_declarations(http:param)]
   ),
-  random_page_number(Random, PageNumber),
+  %random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
   alt_atom_(G1, G2, G),
@@ -545,15 +545,15 @@ term_method(Request, Role, Method, MediaTypes) :-
     page_size: PageSize,
     uri: Uri
   },
-  (   Random == true
-  ->  RandomOptions = Options.put(_{single_page: true}),
-      pagination(
-        Term,
-        hdt_term_random_(Hdt, Role, Term),
-        RandomOptions,
-        Page
-      )
-  ;   atom(Prefix)
+  %(   Random == true
+  %->  RandomOptions = Options.put(_{single_page: true}),
+  %    pagination(
+  %      Term,
+  %      hdt_term_random_(Hdt, Role, Term),
+  %      RandomOptions,
+  %      Page
+  %    )
+  (   atom(Prefix)
   ->  pagination(
         Term,
         hdt_term_prefix(Hdt, Role, Prefix, Term),
@@ -672,12 +672,12 @@ term_id_method(Request, Role, Method, MediaTypes) :-
       graph(G1),
       page(PageNumber),
       page_size(PageSize),
-      prefix(Prefix),
-      random(Random)
+      prefix(Prefix)%,
+      %random(Random)
     ],
     [attribute_declarations(http:param)]
   ),
-  random_page_number(Random, PageNumber),
+  %random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
   alt_atom_(G1, G2, G),
@@ -688,15 +688,15 @@ term_id_method(Request, Role, Method, MediaTypes) :-
     page_size: PageSize,
     uri: Uri
   },
-  (   Random == true
-  ->  RandomOptions = Options.put(_{single_page: true}),
-      pagination(
-        Id,
-        hdt_term_random_id(Hdt, Role, Id),
-        RandomOptions,
-        Page
-      )
-  ;   atom(Prefix)
+  %(   Random == true
+  %->  RandomOptions = Options.put(_{single_page: true}),
+  %    pagination(
+  %      Id,
+  %      hdt_term_random_id(Hdt, Role, Id),
+  %      RandomOptions,
+  %      Page
+  %    )
+  (   atom(Prefix)
   ->  pagination(
         Id,
         hdt_term_prefix_id(Hdt, Role, Prefix, Id),
@@ -793,13 +793,13 @@ triple_method(Request, Method, MediaTypes) :-
       page_size(PageSize),
       p(PAtom2),
       predicate(PAtom1),
-      random(Random),
+      %random(Random),
       s(SAtom2),
       subject(SAtom1)
     ],
     [attribute_declarations(http:param)]
   ),
-  random_page_number(Random, PageNumber),
+  %random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
   maplist(
@@ -822,15 +822,15 @@ triple_method(Request, Method, MediaTypes) :-
     query: [graph(G)|T],
     uri: Uri
   },
-  (   Random == true
-  ->  RandomOptions = Options.put(_{single_page: true}),
-      pagination(
-        rdf(S,P,O),
-        hdt_triple_random_(Hdt, S, P, O),
-        RandomOptions,
-        Page
-      ),format(user_output, "~w\n", [Page])
-  ;   pagination(
+  %(   Random == true
+  %->  RandomOptions = Options.put(_{single_page: true}),
+  %    pagination(
+  %      rdf(S,P,O),
+  %      hdt_triple_random_(Hdt, S, P, O),
+  %      RandomOptions,
+  %      Page
+  %    ),format(user_output, "~w\n", [Page])
+  (   pagination(
         rdf(S,P,O),
         hdt_triple(Hdt, S, P, O),
         hdt_triple_count(Hdt, S, P, O),
@@ -933,13 +933,13 @@ triple_id_method(Request, Method, MediaTypes) :-
       page_size(PageSize),
       p(PAtom2),
       predicate(PAtom1),
-      random(Random),
+      %random(Random),
       s(SAtom2),
       subject(SAtom1)
     ],
     [attribute_declarations(http:param)]
   ),
-  random_page_number(Random, PageNumber),
+  %random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
   maplist(
@@ -962,15 +962,15 @@ triple_id_method(Request, Method, MediaTypes) :-
     query: [graph(G)|T],
     uri: Uri
   },
-  (   Random == true
-  ->  RandomOptions = Options.put(_{single_page: true}),
-      pagination(
-        IdTriple,
-        hdt_triple_random_id(Hdt, S, P, O, IdTriple),
-        RandomOptions,
-        Page
-      )
-  ;   pagination(
+  %(   Random == true
+  %->  RandomOptions = Options.put(_{single_page: true}),
+  %    pagination(
+  %      IdTriple,
+  %      hdt_triple_random_id(Hdt, S, P, O, IdTriple),
+  %      RandomOptions,
+  %      Page
+  %    )
+  (   pagination(
         IdTriple,
         hdt_triple_id_(Hdt, S, P, O, IdTriple),
         hdt_triple_count(Hdt, S, P, O),
