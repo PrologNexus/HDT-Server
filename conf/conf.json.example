@@ -1,8 +1,11 @@
 {
-  "graphs": [
-    {
-      "file": "/home/wbeek/data/default.hdt",
-      "name": "default"
-    }
-  ]
+  "hdt": {
+    "graphs": [
+      {
+        "default": true,
+        "file": "PATH",
+        "name": "NAME"
+      }
+    ]
+  }
 }

@@ -34,7 +34,7 @@
     http:param/2,
     http:params/2.
 
-:- http_handler(/, hdt_handler,
+:- http_handler(/, home_handler,
                 [methods([get,head,options])]).
 :- http_handler(root(doc), doc_handler,
                 [methods([get,head,options])]).
@@ -115,19 +115,18 @@ html:menu_item(term, "Terms").
   html:menu_item(term, sink_handler, "Sinks").
   html:menu_item(term, source_handler, "Sources").
   html:menu_item(term, subject_handler, "Subjects").
-html:menu_item(term_id, "Term IDs").
-  html:menu_item(term_id, node_id_handler, "Node IDs").
-  html:menu_item(term_id, object_id_handler, "Object IDs").
-  html:menu_item(term_id, predicate_id_handler, "Predicate IDs").
-  html:menu_item(term_id, shared_id_handler, "Shared IDs").
-  html:menu_item(term_id, sink_id_handler, "Sink IDs").
-  html:menu_item(term_id, source_id_handler, "Source IDs").
-  html:menu_item(term_id, subject_id_handler, "Subject IDs").
-html:menu_item(triple, "Triples").
-  html:menu_item(triple, triple_handler, "Triples").
-  html:menu_item(triple, triple_id_handler, "Triples IDs").
+%html:menu_item(term_id, "Term IDs").
+%  html:menu_item(term_id, node_id_handler, "Node IDs").
+%  html:menu_item(term_id, object_id_handler, "Object IDs").
+%  html:menu_item(term_id, predicate_id_handler, "Predicate IDs").
+%  html:menu_item(term_id, shared_id_handler, "Shared IDs").
+%  html:menu_item(term_id, sink_id_handler, "Sink IDs").
+%  html:menu_item(term_id, source_id_handler, "Source IDs").
+%  html:menu_item(term_id, subject_id_handler, "Subject IDs").
+html:menu_item(triple_handler, "Triples").
+%html:menu_item(triple_id_handler, "Triple IDs").
 
-http:media_types(hdt_handler, [media(text/html,[])]).
+http:media_types(home_handler, [media(text/html,[])]).
 http:media_types(doc_handler, [media(text/html,[])]).
 http:media_types(graph_handler, [media(application/json,[]),
                                  media(text/html,[])]).
@@ -232,7 +231,7 @@ http:param(subject, [
   optional(true)
 ]).
 
-http:params(hdt_handler, [page,page_size]).
+http:params(home_handler, [page,page_size]).
 http:params(doc_handler, []).
 http:params(graph_handler, [page,page_size]).
 http:params(node_handler, [g,graph,page,page_size,prefix,random]).
@@ -282,11 +281,11 @@ http:status_page(not_found(Uri), _, Dom) :-
 % ROOT %
 
 % /
-hdt_handler(Request) :-
-  rest_method(Request, hdt_method(Request)).
+home_handler(Request) :-
+  rest_method(Request, home_method(Request)).
 
 % /: GET,HEAD
-hdt_method(Request, Method, MediaTypes) :-
+home_method(Request, Method, MediaTypes) :-
   http_is_get(Method),
   http_parameters(
     Request,
@@ -301,7 +300,7 @@ hdt_method(Request, Method, MediaTypes) :-
         _{page_number: PageNumber, page_size: PageSize, uri: Uri},
         Page
       ),
-      rest_media_type(MediaTypes, hdt_media_type(Page))
+      rest_media_type(MediaTypes, home_media_type(Page))
   ;   rest_media_type(MediaTypes, graph_media_type(G))
   ).
 
@@ -350,10 +349,10 @@ graph_rows(G) -->
   ]).
 
 % /graph: GET,HEAD: application/json
-hdt_media_type(Page, media(application/json,_)) :-
+home_media_type(Page, media(application/json,_)) :-
   http_pagination_json(Page).
 % /graph: GET,HEAD: text/html
-hdt_media_type(Page, media(text/html,_)) :-
+home_media_type(Page, media(text/html,_)) :-
   http_pagination_header(Page),
   html_page(
     page(_,["Graph","Overview"]),
@@ -371,7 +370,7 @@ graph_row(G) -->
   {
     hdt_graph(Hdt, G),
     % name
-    http_link_to_id(hdt_handler, [graph(G)], GraphUri),
+    http_link_to_id(home_handler, [graph(G)], GraphUri),
     % number of triples
     http_link_to_id(triple_handler, [graph(G)], TriplesUri),
     hdt_triple_count(Hdt, _, _, _, NumTriples),
@@ -569,47 +568,66 @@ term_method(Request, Role, Method, MediaTypes) :-
         Page
       )
   ),
-  rest_media_type(MediaTypes, term_media_type(Uri, Role, G, Page)).
+  rest_media_type(MediaTypes, term_media_type(Hdt, Uri, Role, G, Page)).
 
 % /term: GET,HEAD: application/json
-term_media_type(_, _, _, Page, media(application/json,_)) :-
+term_media_type(_, _, _, _, Page, media(application/json,_)) :-
   http_pagination_json(Page).
 % /term: GET,HEAD: text/html
-term_media_type(Uri, Role, G, Page, media(text/html,_)) :-
+term_media_type(Hdt, Uri, Role, G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
   atom_capitalize(Role, CRole),
   html_page(
     page(Page,[CRole]),
     [],
-    [\html_pagination_result(Page, html_term_table(Uri, G))]
+    [\html_pagination_result(Page, html_term_table(Hdt, Uri, G))]
   ).
 
-html_term_table(Uri, G, Terms) -->
+html_term_table(Hdt, Uri, G, Terms) -->
   {uri_encode(Uri, EncodeUri)},
   html([
     a(href=EncodeUri, "[encode]"),
-    ul(\html_maplist(html_term_row(G), Terms))
+    ul(\html_maplist(html_term_row(Hdt, G), Terms))
   ]).
 
-html_term_row(G, Term) -->
+html_term_row(Hdt, G, Term) -->
   {
     (hdt_default_graph(G) -> T = [] ; T = [graph(G)]),
-    rdf_term_to_atom(Term, Atom),
-    http_link_to_id(triple_handler, [subject(Atom)|T], UriS),
-    http_link_to_id(triple_handler, [predicate(Atom)|T], UriP),
-    http_link_to_id(triple_handler, [object(Atom)|T], UriO)
+    rdf_term_to_atom(Term, Atom)
   },
   html(
     li([
       \rdf_html_term(Term, _{format: ntuples}),
-      " ",
-      a(href=UriS, "(s)"),
-      " ",
-      a(href=UriP, "(p)"),
-      " ",
-      a(href=UriO, "(o)")
+      " 〈",
+      \html_term_subject_link(Hdt, Term, Atom, T),
+      ", ",
+      \html_term_predicate_link(Hdt, Term, Atom, T),
+      ", ",
+      \html_term_object_link(Hdt, Term, Atom, T),
+      "〉"
     ])
   ).
+
+html_term_object_link(Hdt, Term, Atom, T) -->
+  {hdt_triple(Hdt, _, _, Term)}, !,
+  {http_link_to_id(triple_handler, [object(Atom)|T], Uri)},
+  html(a(href=Uri, "o")).
+html_term_object_link(_, _, _, _) -->
+  html("o").
+
+html_term_predicate_link(Hdt, Term, Atom, T) -->
+  {hdt_triple(Hdt, _, Term, _)}, !,
+  {http_link_to_id(triple_handler, [predicate(Atom)|T], Uri)},
+  html(a(href=Uri, "o")).
+html_term_predicate_link(_, _, _, _) -->
+  html("p").
+
+html_term_subject_link(Hdt, Term, Atom, T) -->
+  {hdt_triple(Hdt, Term, _, _)}, !,
+  {http_link_to_id(triple_handler, [subject(Atom)|T], Uri)},
+  html(a(href=Uri, "s")).
+html_term_subject_link(_, _, _, _) -->
+  html("s").
 
 
 
@@ -720,29 +738,36 @@ html_term_id_row(G, id(Role,Id)) -->
   html(
     li([
       Id,
+      " 〈",
       \html_term_id_subject_link(Role, Id, T),
+      ", ",
       \html_term_id_predicate_link(Role, Id, T),
-      \html_term_id_object_link(Role, Id, T)
+      ", ",
+      \html_term_id_object_link(Role, Id, T),
+      "〉"
     ])
   ).
 
 html_term_id_subject_link(Role, Id, T) -->
-  {role_subrole(Role, subject)}, !,
+  {role_subrole(subject, Role)}, !,
   {http_link_to_id(triple_id_handler, [subject(Id)|T], Uri)},
-  html([" ",a(href=Uri, "(s)")]).
-html_term_id_subject_link(_, _, _) --> "".
+  html(a(href=Uri, "s")).
+html_term_id_subject_link(_, _, _) -->
+  html("s").
 
 html_term_id_predicate_link(Role, Id, T) -->
-  {role_subrole(Role, predicate)}, !,
+  {role_subrole(predicate, Role)}, !,
   {http_link_to_id(triple_id_handler, [predicate(Id)|T], Uri)},
-  html([" ",a(href=Uri, "(s)")]).
-html_term_id_predicate_link(_, _, _) --> "".
+  html(a(href=Uri, "p")).
+html_term_id_predicate_link(_, _, _) -->
+  html("p").
 
 html_term_id_object_link(Role, Id, T) -->
-  {role_subrole(Role, object)}, !,
+  {role_subrole(object, Role)}, !,
   {http_link_to_id(triple_id_handler, [object(Id)|T], Uri)},
-  html([" ",a(href=Uri, "(s)")]).
-html_term_id_object_link(_, _, _) --> "".
+  html(a(href=Uri, "o")).
+html_term_id_object_link(_, _, _) -->
+  html("o").
 
 
 
@@ -1040,9 +1065,9 @@ arg_to_term_(Hdt, Role, Atom, Term) :-
   atom_number(Atom, Id), !,
   hdt_term_id(Hdt, Role, Term, Id).
 % Turtle 1.1 notation for RDF terms
-arg_to_term_(Atom, Term) :-
+arg_to_term_(_, _, Atom, Term) :-
   rdf_atom_to_term(Atom, Term), !.
-arg_to_term_(Atom, _) :-
+arg_to_term_(_, _, Atom, _) :-
   type_error(rdf_term, Atom).
 
 
@@ -1158,4 +1183,4 @@ user:head(page(Page,Subtitles), Content_0) -->
   ).
 
 user:body(page(_,_), Content_0) -->
-  html(body([\navbar("HDT-Server", \menu, "")|Content_0])).
+  html(body([\navbar("HDT-Server", \menu, ""),\row_1(Content_0)])).
