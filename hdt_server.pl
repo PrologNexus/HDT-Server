@@ -180,7 +180,7 @@ http:media_types(subject_id_handler, [media(application/json,[]),
 http:media_types(triple_handler, [media(application/'n-triples',[]),
                                   media(application/'n-quads',[]),
                                   media(application/'rdf/xml',[]),
-                                  media(application/trig,[]),
+                                  %media(application/trig,[]),
                                   media(text/html,[]),
                                   media(text/turtle,[])]).
 http:media_types(triple_count_handler, [media(application/json,[]),
@@ -890,8 +890,8 @@ triple_media_type(_, _, Page, MediaType) :-
     uuid(File),
     (   MediaType = media(application/'rdf+xml',_)
     ->  rdf_save(File)
-    ;   MediaType = media(application/trig,_)
-    ->  rdf_save_canonical_trig(File, [])
+    %;   MediaType = media(application/trig,_)
+    %->  rdf_save_canonical_trig(File, [])
     ;   MediaType = media(text/turtle,_)
     ->  rdf_save_canonical_turtle(File, [])
     ),
@@ -904,7 +904,7 @@ triple_media_type(_, _, Page, MediaType) :-
   )).
 
 rdf_media_type_(media(application/'rdf+xml',_)).
-rdf_media_type_(media(application/trig,_)).
+%rdf_media_type_(media(application/trig,_)).
 rdf_media_type_(media(text/turtle,_)).
 
 
