@@ -536,8 +536,8 @@ term_method(Request, Role, Method, MediaTypes) :-
   http_parameters(
     Request,
     [
-      g(G2),
-      graph(G1),
+      g(G),
+      graph(G),
       page(PageNumber),
       page_size(PageSize),
       prefix(Prefix),
@@ -548,7 +548,6 @@ term_method(Request, Role, Method, MediaTypes) :-
   random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  alt_atom_(G1, G2, G),
   hdt_graph(Hdt, G),
   Options = _{
     graph: G,
@@ -651,10 +650,9 @@ term_count_method(Request, Role, Method, MediaTypes) :-
   http_is_get(Method),
   http_parameters(
     Request,
-    [g(G2),graph(G1)],
+    [g(G),graph(G)],
     [attribute_declarations(http:param)]
   ),
-  alt_atom_(G1, G2, G),
   hdt_graph(Hdt, G),
   hdt_term_count(Hdt, Role, Count),
   rest_media_type(MediaTypes, term_count_media_type(G, Role, Count)).
@@ -679,8 +677,8 @@ term_id_method(Request, Role, Method, MediaTypes) :-
   http_parameters(
     Request,
     [
-      g(G2),
-      graph(G1),
+      g(G),
+      graph(G),
       page(PageNumber),
       page_size(PageSize),
       prefix(Prefix),
@@ -691,7 +689,6 @@ term_id_method(Request, Role, Method, MediaTypes) :-
   random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  alt_atom_(G1, G2, G),
   hdt_graph(Hdt, G),
   Options = _{
     graph: G,
@@ -796,29 +793,23 @@ triple_method(Request, Method, MediaTypes) :-
   http_parameters(
     Request,
     [
-      g(G2),
-      graph(G1),
-      o(OAtom2),
-      object(OAtom1),
+      g(G),
+      graph(G),
+      o(OAtom),
+      object(OAtom),
       page(PageNumber),
       page_size(PageSize),
-      p(PAtom2),
-      predicate(PAtom1),
+      p(PAtom),
+      predicate(PAtom),
       random(Random),
-      s(SAtom2),
-      subject(SAtom1)
+      s(SAtom),
+      subject(SAtom)
     ],
     [attribute_declarations(http:param)]
   ),
   random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  maplist(
-    alt_atom_,
-    [SAtom1,PAtom1,OAtom1,G1],
-    [SAtom2,PAtom2,OAtom2,G2],
-    [SAtom,PAtom,OAtom,G]
-  ),
   include(ground, [s(SAtom),p(PAtom),o(OAtom)], T),
   hdt_graph(Hdt, G),
   maplist(
@@ -934,22 +925,16 @@ triple_count_method(Request, Method, MediaTypes) :-
   http_parameters(
     Request,
     [
-      g(G2),
-      graph(G1),
-      o(OAtom2),
-      object(OAtom1),
-      p(PAtom2),
-      predicate(PAtom1),
-      s(SAtom2),
-      subject(SAtom1)
+      g(G),
+      graph(G),
+      o(OAtom),
+      object(OAtom),
+      p(PAtom),
+      predicate(PAtom),
+      s(SAtom),
+      subject(SAtom)
     ],
     [attribute_declarations(http:param)]
-  ),
-  maplist(
-    alt_atom_,
-    [SAtom1,PAtom1,OAtom1,G1],
-    [SAtom2,PAtom2,OAtom2,G2],
-    [SAtom,PAtom,OAtom,G]
   ),
   hdt_graph(Hdt, G),
   maplist(
@@ -980,29 +965,23 @@ triple_id_method(Request, Method, MediaTypes) :-
   http_parameters(
     Request,
     [
-      g(G2),
-      graph(G1),
-      o(OAtom2),
-      object(OAtom1),
+      g(G),
+      graph(G),
+      o(OAtom),
+      object(OAtom),
       page(PageNumber),
       page_size(PageSize),
-      p(PAtom2),
-      predicate(PAtom1),
+      p(PAtom),
+      predicate(PAtom),
       random(Random),
-      s(SAtom2),
-      subject(SAtom1)
+      s(SAtom),
+      subject(SAtom)
     ],
     [attribute_declarations(http:param)]
   ),
   random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  maplist(
-    alt_atom_,
-    [SAtom1,PAtom1,OAtom1,G1],
-    [SAtom2,PAtom2,OAtom2,G2],
-    [SAtom,PAtom,OAtom,G]
-  ),
   include(ground, [s(SAtom),p(PAtom),o(OAtom)], T),
   hdt_graph(Hdt, G),
   maplist(
@@ -1097,20 +1076,6 @@ id_query_(id(Role,Id), Query) :-
 
 
 % GENERICS %
-
-%! alt_atom_(?Atom1:atom, ?Atom2:atom, -Atom:atom) is det.
-%
-% Some parameters may be set in more than one way.  If this is the
-% case, then choose the primary parameter value (`Atom1') over the
-% secondary parameter value (`Atom2').
-
-alt_atom_(Atom1, _, Atom1) :-
-  atom(Atom1), !.
-alt_atom_(_, Atom2, Atom2) :-
-  atom(Atom2), !.
-alt_atom_(_, _, _).
-
-
 
 %! arg_to_term_(+Hdt:blob, +Role:atom, +Atom:atom, -Term:rdf_term) is det.
 
