@@ -187,8 +187,7 @@ http:media_types(triple_handler, [media(application/'n-triples',[]),
 http:media_types(triple_count_handler, [media(application/json,[]),
                                         media(text/html,[])]).
 http:media_types(triple_id_handler, [media(application/json,[]),
-                                     media(text/html,[]),
-                                     media(text/'vnd.graphviz',[])]).
+                                     media(text/html,[])]).
 
 http:param(count, [
   boolean,
@@ -1046,12 +1045,6 @@ triple_id_method(Request, Method, MediaTypes) :-
   ),
   rest_media_type(MediaTypes, triple_id_media_type(G, Page)).
 
-% /triple/id: GET,HEAD: GML
-triple_id_media_type(_, Page, media(application/gml,_)) :-
-  format("Content-Type: application/gml\n"),
-  http_pagination_header(Page),
-  nl,
-  write_gml_triples(Page.results).
 % /triple/id: GET,HEAD: application/json
 triple_id_media_type(_, Page, media(application/json,_)) :-
   http_pagination_json(Page).
@@ -1063,12 +1056,6 @@ triple_id_media_type(G, Page, media(text/html,_)) :-
     [],
     [\html_pagination_result(Page, html_triple_id_table(Page.uri, G))]
   ).
-
-write_gml_triples(Triples) :-
-  maplist(write_gml_triple, Triples).
-
-write_gml_triple(rdf(SId,PId,OId)) :-
-  format("edge [ label ~a source ~a target ~a ]\n", [PId,SId,OId]).
 
 html_triple_id_table(Uri, G, Triples) -->
   {uri_decode(Uri, DecodeUri)},
