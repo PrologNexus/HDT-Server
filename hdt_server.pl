@@ -197,10 +197,9 @@ http:param(g, Options) :-
   http:param(graph, Options).
 http:param(graph, [
   atom,
-  default(G),
-  description("The named graph from which results are retrieved.  When absent, results are retrieved from the default graph.")
-]) :-
-  hdt_default_graph(G).
+  description("The named graph from which results are retrieved.  When absent, results are retrieved from the default graph."),
+  optional(true)
+]).
 http:param(id, [
   boolean,
   default(false),
@@ -297,8 +296,8 @@ home_method(Request, Method, MediaTypes) :-
   http_parameters(
     Request,
     [
-      g(G,[optional(true)]),
-      graph(G,[optional(true)]),
+      g(G),
+      graph(G),
       page(PageNumber),
       page_size(PageSize)
     ],
@@ -548,7 +547,7 @@ term_method(Request, Role, Method, MediaTypes) :-
   random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  hdt_graph(Hdt, G),
+  hdt_graph_(Hdt, G),
   Options = _{
     graph: G,
     page_number: PageNumber,
@@ -653,7 +652,7 @@ term_count_method(Request, Role, Method, MediaTypes) :-
     [g(G),graph(G)],
     [attribute_declarations(http:param)]
   ),
-  hdt_graph(Hdt, G),
+  hdt_graph_(Hdt, G),
   hdt_term_count(Hdt, Role, Count),
   rest_media_type(MediaTypes, term_count_media_type(G, Role, Count)).
 
@@ -689,7 +688,7 @@ term_id_method(Request, Role, Method, MediaTypes) :-
   random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  hdt_graph(Hdt, G),
+  hdt_graph_(Hdt, G),
   Options = _{
     graph: G,
     page_number: PageNumber,
@@ -811,7 +810,7 @@ triple_method(Request, Method, MediaTypes) :-
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
   include(ground, [s(SAtom),p(PAtom),o(OAtom)], T),
-  hdt_graph(Hdt, G),
+  hdt_graph_(Hdt, G),
   maplist(
     arg_to_term_(Hdt),
     [subject,predicate,object],
@@ -936,7 +935,7 @@ triple_count_method(Request, Method, MediaTypes) :-
     ],
     [attribute_declarations(http:param)]
   ),
-  hdt_graph(Hdt, G),
+  hdt_graph_(Hdt, G),
   maplist(
     arg_to_term_(Hdt),
     [subject,predicate,object],
@@ -983,7 +982,7 @@ triple_id_method(Request, Method, MediaTypes) :-
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
   include(ground, [s(SAtom),p(PAtom),o(OAtom)], T),
-  hdt_graph(Hdt, G),
+  hdt_graph_(Hdt, G),
   maplist(
     arg_to_term_(Hdt),
     [subject,predicate,object],
@@ -1092,6 +1091,15 @@ arg_to_term_(_, _, Atom, Term) :-
 arg_to_term_(_, _, Atom, _) :-
   type_error(rdf_term, Atom).
 
+
+
+%! hdt_graph_(-Hdt:blob, ?G:atom) is det.
+
+hdt_graph_(Hdt, G) :-
+  var(G), !,
+  hdt_default(Hdt).
+hdt_graph_(Hdt, G) :-
+  hdt_graph(Hdt, G).
 
 
 %! hdt_term_id_(+Hdt:blob, +Role:atom, -Id:compound) is nondet.
