@@ -293,15 +293,9 @@ home_handler(Request) :-
 % /: GET,HEAD
 home_method(Request, Method, MediaTypes) :-
   http_is_get(Method),
-  http_parameters(
+  rest_parameters(
     Request,
-    [
-      g(G),
-      graph(G),
-      page(PageNumber),
-      page_size(PageSize)
-    ],
-    [attribute_declarations(http:param)]
+    [g(G),graph(G),page(PageNumber),page_size(PageSize)]
   ),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
@@ -532,7 +526,7 @@ term_handler(Request, Role) :-
 % /term: GET,HEAD
 term_method(Request, Role, Method, MediaTypes) :-
   http_is_get(Method),
-  http_parameters(
+  rest_parameters(
     Request,
     [
       g(G),
@@ -541,8 +535,7 @@ term_method(Request, Role, Method, MediaTypes) :-
       page_size(PageSize),
       prefix(Prefix),
       random(Random)
-    ],
-    [attribute_declarations(http:param)]
+    ]
   ),
   random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
@@ -647,11 +640,7 @@ term_count_handler(Request, Role) :-
 % /term/count: GET,HEAD
 term_count_method(Request, Role, Method, MediaTypes) :-
   http_is_get(Method),
-  http_parameters(
-    Request,
-    [g(G),graph(G)],
-    [attribute_declarations(http:param)]
-  ),
+  rest_parameters(Request, [g(G),graph(G)]),
   hdt_graph_(Hdt, G),
   hdt_term_count(Hdt, Role, Count),
   rest_media_type(MediaTypes, term_count_media_type(G, Role, Count)).
@@ -673,7 +662,7 @@ term_id_handler(Request, Role) :-
 % /term/id: GET,HEAD
 term_id_method(Request, Role, Method, MediaTypes) :-
   http_is_get(Method),
-  http_parameters(
+  rest_parameters(
     Request,
     [
       g(G),
@@ -682,8 +671,7 @@ term_id_method(Request, Role, Method, MediaTypes) :-
       page_size(PageSize),
       prefix(Prefix),
       random(Random)
-    ],
-    [attribute_declarations(http:param)]
+    ]
   ),
   random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
@@ -789,7 +777,7 @@ triple_handler(Request) :-
 % /triple: GET,HEAD
 triple_method(Request, Method, MediaTypes) :-
   http_is_get(Method),
-  http_parameters(
+  rest_parameters(
     Request,
     [
       g(G),
@@ -803,8 +791,7 @@ triple_method(Request, Method, MediaTypes) :-
       random(Random),
       s(SAtom),
       subject(SAtom)
-    ],
-    [attribute_declarations(http:param)]
+    ]
   ),
   random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
@@ -922,7 +909,7 @@ triple_count_handler(Request) :-
 % /triple/count: GET,HEAD
 triple_count_method(Request, Method, MediaTypes) :-
   http_is_get(Method),
-  http_parameters(
+  rest_parameters(
     Request,
     [
       g(G),
@@ -933,8 +920,7 @@ triple_count_method(Request, Method, MediaTypes) :-
       predicate(PAtom),
       s(SAtom),
       subject(SAtom)
-    ],
-    [attribute_declarations(http:param)]
+    ]
   ),
   hdt_graph_(Hdt, G),
   maplist(
@@ -962,7 +948,7 @@ triple_id_handler(Request) :-
 % /triple/id: GET,HEAD
 triple_id_method(Request, Method, MediaTypes) :-
   http_is_get(Method),
-  http_parameters(
+  rest_parameters(
     Request,
     [
       g(G),
@@ -976,8 +962,7 @@ triple_id_method(Request, Method, MediaTypes) :-
       random(Random),
       s(SAtom),
       subject(SAtom)
-    ],
-    [attribute_declarations(http:param)]
+    ]
   ),
   random_page_number(Random, PageNumber),
   memberchk(request_uri(RelUri), Request),
