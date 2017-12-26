@@ -10,6 +10,7 @@
 :- use_module(library(apply)).
 :- use_module(library(atom_ext)).
 :- use_module(library(conf_ext)).
+:- use_module(library(dcg/dcg_ext)).
 :- use_module(library(dict_ext)).
 :- use_module(library(error)).
 :- use_module(library(html/html_doc)).
@@ -18,11 +19,15 @@
 :- use_module(library(html/rdf_html)).
 :- use_module(library(http/http_pagination)).
 :- use_module(library(http/http_server)).
+:- use_module(library(lists)).
+:- use_module(library(media_type)).
 :- use_module(library(pagination)).
 :- use_module(library(semweb/hdt_api)).
 :- use_module(library(semweb/hdt_graph)).
 :- use_module(library(semweb/rdf_api)).
+:- use_module(library(semweb/rdf_db), [rdf_save/1]).
 :- use_module(library(semweb/rdf_export)).
+:- use_module(library(semweb/turtle)).
 :- use_module(library(settings)).
 :- use_module(library(uri/uri_ext)).
 :- use_module(library(yall)).
@@ -175,7 +180,10 @@ http:media_types(subject_id_handler, [media(application/json,[]),
                                       media(text/html,[])]).
 http:media_types(triple_handler, [media(application/'n-triples',[]),
                                   media(application/'n-quads',[]),
-                                  media(text/html,[])]).
+                                  media(application/'rdf/xml',[]),
+                                  %media(application/trig,[]),
+                                  media(text/html,[]),
+                                  media(text/turtle,[])]).
 http:media_types(triple_count_handler, [media(application/json,[]),
                                         media(text/html,[])]).
 http:media_types(triple_id_handler, [media(application/json,[]),
@@ -851,8 +859,12 @@ triple_method(Request, Method, MediaTypes) :-
   ),
   rest_media_type(MediaTypes, triple_media_type(Uri, G, Page)).
 
-
-
+% /triple: GET,HEAD: application/n-quads
+triple_media_type(_, _, Page, media(application/'n-quads',_)) :-
+  format("Content-Type: application/n-quads\n"),
+  http_pagination_header(Page),
+  nl,
+  maplist(rdf_write_tuple(current_output), Page.results).
 % /triple: GET,HEAD: application/n-triples
 triple_media_type(_, _, Page, media(application/'n-triples',_)) :-
   format("Content-Type: application/n-triples\n"),
@@ -879,6 +891,33 @@ triple_media_type(Uri, G, Page, media(text/html,_)) :-
       )
     ]
   ).
+% /triple: GET,HEAD: application/rdf+xml, application/trig, text/turtle
+triple_media_type(_, _, Page, MediaType) :-
+  rdf_media_type_(MediaType),
+  atom_phrase(media_type(MediaType), Atom),
+  format("Content-Type: ~a\n\n", [Atom]),
+  rdf_transaction((
+    rdf_retractall(_, _, _, _),
+    maplist(rdf_assert, Page.results),
+    uuid(File),
+    (   MediaType = media(application/'rdf+xml',_)
+    ->  rdf_save(File)
+    %;   MediaType = media(application/trig,_)
+    %->  rdf_save_canonical_trig(File, [])
+    ;   MediaType = media(text/turtle,_)
+    ->  rdf_save_canonical_turtle(File, [])
+    ),
+    setup_call_cleanup(
+      open(File, read, In),
+      copy_stream_data(In, current_output),
+      close(In)
+    ),
+    delete_file(File)
+  )).
+
+rdf_media_type_(media(application/'rdf+xml',_)).
+%rdf_media_type_(media(application/trig,_)).
+rdf_media_type_(media(text/turtle,_)).
 
 
 
