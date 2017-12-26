@@ -179,7 +179,7 @@ http:media_types(subject_id_handler, [media(application/json,[]),
                                       media(text/html,[])]).
 http:media_types(triple_handler, [media(application/'n-triples',[]),
                                   media(application/'n-quads',[]),
-                                  media(application/'rdf/xml',[]),
+                                  media(application/'rdf+xml',[]),
                                   %media(application/trig,[]),
                                   media(text/html,[]),
                                   media(text/turtle,[])]).
