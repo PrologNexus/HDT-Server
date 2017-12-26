@@ -9,7 +9,6 @@
 :- use_module(library(aggregate)).
 :- use_module(library(apply)).
 :- use_module(library(atom_ext)).
-:- use_module(library(conf_ext)).
 :- use_module(library(dcg/dcg_ext)).
 :- use_module(library(dict_ext)).
 :- use_module(library(error)).
@@ -19,7 +18,6 @@
 :- use_module(library(html/rdf_html)).
 :- use_module(library(http/http_pagination)).
 :- use_module(library(http/http_server)).
-:- use_module(library(lists)).
 :- use_module(library(media_type)).
 :- use_module(library(pagination)).
 :- use_module(library(semweb/hdt_api)).
@@ -97,6 +95,7 @@
     html:handler_description/2,
     html:menu_item/2,
     html:menu_item/3,
+    html:rest_exception/1,
     html_doc:custom_param_type//3,
     http:status_page/3,
     user:body//2,
@@ -1210,6 +1209,16 @@ uri_encode(Uri1, Uri2) :-
 
 
 % HTML STYLE %
+
+html:rest_exception(400) :-
+  html_page(
+    page(_,["Error","Bad Request"],_),
+    [],
+    [
+      p("Bad request"),
+      p(a(href='/',"Return to root"))
+    ]
+  ).
 
 user:head(page(Page,Subtitles,_), Content_0) -->
   {atomics_to_string(["HDT-Server"|Subtitles], " ― ", Title)},
