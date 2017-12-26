@@ -817,10 +817,11 @@ triple_method(Request, Method, MediaTypes) :-
     [SAtom,PAtom,OAtom],
     [S,P,O]
   ),
+  (var(G) -> QueryComps = T ; QueryComps = [g(G)|T]),
   Options = _{
     page_number: PageNumber,
     page_size: PageSize,
-    query: [graph(G)|T],
+    query: QueryComps,
     uri: Uri
   },
   (   Random == true
@@ -989,10 +990,11 @@ triple_id_method(Request, Method, MediaTypes) :-
     [SAtom,PAtom,OAtom],
     [S,P,O]
   ),
+  (var(G) -> QueryComps = T ; QueryComps = [g(G)|T]),
   Options = _{
     page_number: PageNumber,
     page_size: PageSize,
-    query: [g(G)|T],
+    query: QueryComps,
     uri: Uri
   },
   (   Random == true
