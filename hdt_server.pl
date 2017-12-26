@@ -296,7 +296,12 @@ home_method(Request, Method, MediaTypes) :-
   http_is_get(Method),
   http_parameters(
     Request,
-    [graph(G,[optional(true)]),page(PageNumber),page_size(PageSize)],
+    [
+      g(G,[optional(true)]),
+      graph(G,[optional(true)]),
+      page(PageNumber),
+      page_size(PageSize)
+    ],
     [attribute_declarations(http:param)]
   ),
   memberchk(request_uri(RelUri), Request),
@@ -327,21 +332,21 @@ graph_media_type(G, media(text/html,_)) :-
 graph_rows(G) -->
   {
     hdt_graph(Hdt, G),
-    http_link_to_id(node_handler, [graph(G)], NodesUri),
+    http_link_to_id(node_handler, [g(G)], NodesUri),
     hdt_term_count(Hdt, node, Nodes),
-    http_link_to_id(object_handler, [graph(G)], ObjectsUri),
+    http_link_to_id(object_handler, [g(G)], ObjectsUri),
     hdt_term_count(Hdt, object, Objects),
-    http_link_to_id(predicate_handler, [graph(G)], PredicatesUri),
+    http_link_to_id(predicate_handler, [g(G)], PredicatesUri),
     hdt_term_count(Hdt, predicate, Predicates),
-    http_link_to_id(shared_handler, [graph(G)], SharedUri),
+    http_link_to_id(shared_handler, [g(G)], SharedUri),
     hdt_term_count(Hdt, shared, Shared),
-    http_link_to_id(sink_handler, [graph(G)], SinksUri),
+    http_link_to_id(sink_handler, [g(G)], SinksUri),
     hdt_term_count(Hdt, sink, Sinks),
-    http_link_to_id(source_handler, [graph(G)], SourcesUri),
+    http_link_to_id(source_handler, [g(G)], SourcesUri),
     hdt_term_count(Hdt, source, Sources),
-    http_link_to_id(subject_handler, [graph(G)], SubjectsUri),
+    http_link_to_id(subject_handler, [g(G)], SubjectsUri),
     hdt_term_count(Hdt, subject, Subjects),
-    http_link_to_id(triple_handler, [graph(G)], TriplesUri),
+    http_link_to_id(triple_handler, [g(G)], TriplesUri),
     hdt_triple_count(Hdt, _, _, _, Triples)
   },
   html([
@@ -377,9 +382,9 @@ graph_row(G) -->
   {
     hdt_graph(Hdt, G),
     % name
-    http_link_to_id(home_handler, [graph(G)], GraphUri),
+    http_link_to_id(home_handler, [g(G)], GraphUri),
     % number of triples
-    http_link_to_id(triple_handler, [graph(G)], TriplesUri),
+    http_link_to_id(triple_handler, [g(G)], TriplesUri),
     hdt_triple_count(Hdt, _, _, _, NumTriples),
     % TBD: modified
     once(hdt:hdt_triple_(Hdt, header, 0, _, '<http://purl.org/dc/terms/issued>', Modified)),
@@ -598,7 +603,7 @@ html_term_table(Hdt, Uri, G, Terms) -->
 
 html_term_row(Hdt, G, Term) -->
   {
-    (hdt_default_graph(G) -> T = [] ; T = [graph(G)]),
+    (hdt_default_graph(G) -> T = [] ; T = [g(G)]),
     rdf_term_to_atom(Term, Atom)
   },
   html(
@@ -616,21 +621,21 @@ html_term_row(Hdt, G, Term) -->
 
 html_term_object_link(Hdt, Term, Atom, T) -->
   {hdt_triple(Hdt, _, _, Term)}, !,
-  {http_link_to_id(triple_handler, [object(Atom)|T], Uri)},
+  {http_link_to_id(triple_handler, [o(Atom)|T], Uri)},
   html(a(href=Uri, "o")).
 html_term_object_link(_, _, _, _) -->
   html("o").
 
 html_term_predicate_link(Hdt, Term, Atom, T) -->
   {hdt_triple(Hdt, _, Term, _)}, !,
-  {http_link_to_id(triple_handler, [predicate(Atom)|T], Uri)},
+  {http_link_to_id(triple_handler, [p(Atom)|T], Uri)},
   html(a(href=Uri, "o")).
 html_term_predicate_link(_, _, _, _) -->
   html("p").
 
 html_term_subject_link(Hdt, Term, Atom, T) -->
   {hdt_triple(Hdt, Term, _, _)}, !,
-  {http_link_to_id(triple_handler, [subject(Atom)|T], Uri)},
+  {http_link_to_id(triple_handler, [s(Atom)|T], Uri)},
   html(a(href=Uri, "s")).
 html_term_subject_link(_, _, _, _) -->
   html("s").
@@ -740,7 +745,7 @@ html_term_id_table(Uri, G, Ids) -->
   ]).
 
 html_term_id_row(G, id(Role,Id)) -->
-  {(hdt_default_graph(G) -> T = [] ; T = [graph(G)])},
+  {(hdt_default_graph(G) -> T = [] ; T = [g(G)])},
   html(
     li([
       Id,
@@ -756,21 +761,21 @@ html_term_id_row(G, id(Role,Id)) -->
 
 html_term_id_subject_link(Role, Id, T) -->
   {role_subrole(subject, Role)}, !,
-  {http_link_to_id(triple_id_handler, [subject(Id)|T], Uri)},
+  {http_link_to_id(triple_id_handler, [s(Id)|T], Uri)},
   html(a(href=Uri, "s")).
 html_term_id_subject_link(_, _, _) -->
   html("s").
 
 html_term_id_predicate_link(Role, Id, T) -->
   {role_subrole(predicate, Role)}, !,
-  {http_link_to_id(triple_id_handler, [predicate(Id)|T], Uri)},
+  {http_link_to_id(triple_id_handler, [p(Id)|T], Uri)},
   html(a(href=Uri, "p")).
 html_term_id_predicate_link(_, _, _) -->
   html("p").
 
 html_term_id_object_link(Role, Id, T) -->
   {role_subrole(object, Role)}, !,
-  {http_link_to_id(triple_id_handler, [object(Id)|T], Uri)},
+  {http_link_to_id(triple_id_handler, [o(Id)|T], Uri)},
   html(a(href=Uri, "o")).
 html_term_id_object_link(_, _, _) -->
   html("o").
@@ -814,7 +819,7 @@ triple_method(Request, Method, MediaTypes) :-
     [SAtom2,PAtom2,OAtom2,G2],
     [SAtom,PAtom,OAtom,G]
   ),
-  include(ground, [subject(SAtom),predicate(PAtom),object(OAtom)], T),
+  include(ground, [s(SAtom),p(PAtom),o(OAtom)], T),
   hdt_graph(Hdt, G),
   maplist(
     arg_to_term_(Hdt),
@@ -998,7 +1003,7 @@ triple_id_method(Request, Method, MediaTypes) :-
     [SAtom2,PAtom2,OAtom2,G2],
     [SAtom,PAtom,OAtom,G]
   ),
-  include(ground, [subject(SAtom),predicate(PAtom),object(OAtom)], T),
+  include(ground, [s(SAtom),p(PAtom),o(OAtom)], T),
   hdt_graph(Hdt, G),
   maplist(
     arg_to_term_(Hdt),
@@ -1009,7 +1014,7 @@ triple_id_method(Request, Method, MediaTypes) :-
   Options = _{
     page_number: PageNumber,
     page_size: PageSize,
-    query: [graph(G)|T],
+    query: [g(G)|T],
     uri: Uri
   },
   (   Random == true
@@ -1068,7 +1073,7 @@ html_triple_id_table(Uri, G, Triples) -->
 
 html_triple_id_row(Uri, G, rdf(id(SRole,SId),id(PRole,PId),id(ORole,OId))) -->
   {
-    (var(G) -> T = [id(true)] ; T = [graph(G),id(true)]),
+    (var(G) -> T = [id(true)] ; T = [g(G),id(true)]),
     maplist(
       id_query_,
       [id(SRole,SId),id(PRole,PId),id(ORole,OId)],
