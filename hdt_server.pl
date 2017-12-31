@@ -97,7 +97,6 @@
     html:menu_item/3,
     html:rest_exception/1,
     html_doc:custom_param_type//3,
-    http:status_page/3,
     user:body//2,
     user:head//2.
 
@@ -264,19 +263,6 @@ http:params(subject_id_handler, [g,graph,page,page_size,prefix,random]).
 http:params(triple_handler, [g,graph,o,object,page,page_size,p,predicate,s,subject]).
 http:params(triple_count_handler, [g,graph,o,object,p,predicate,s,subject]).
 http:params(triple_id_handler, [g,graph,o,object,page,page_size,p,predicate,s,subject]).
-
-http:status_page(not_found(Uri), _, Dom) :-
-  phrase(
-    page(
-      page(_,["Path Not Found",Uri],_),
-      [],
-      [
-        h1(["Path Not Found: ",code(Uri)]),
-        p(a(href='/',"Return to root"))
-      ]
-    ),
-    Dom
-  ).
 
 :- set_setting(http:products, ["HDT-Server"-"v0.0.5"]).
 
@@ -1076,7 +1062,8 @@ arg_to_term_(Hdt, Role, Atom, Term) :-
 arg_to_term_(_, _, Atom, Term) :-
   rdf_atom_to_term(Atom, Term), !.
 arg_to_term_(_, _, Atom, _) :-
-  type_error(rdf_term, Atom).
+  format(string(Message), "Expecting an RDF term, instead for `~a'.", [Atom]),
+  throw(error(http_server(_{message: Message, status: 400}))).
 
 
 
@@ -1087,6 +1074,10 @@ hdt_graph_(Hdt, G) :-
   hdt_default(Hdt).
 hdt_graph_(Hdt, G) :-
   hdt_graph(Hdt, G).
+hdt_graph_(_, G) :-
+  format(string(Message), "Graph ~a does not exist.", [G]),
+  throw(error(http_server(_{message: Message, status: 400}))).
+
 
 
 %! hdt_term_id_(+Hdt:blob, +Role:atom, -Id:compound) is nondet.
@@ -1150,7 +1141,12 @@ hdt_triple_random_id(Hdt, S, P, O, IdTriple) :-
 
 random_page_number(true, PageNumber) :-
   PageNumber > 1, !,
-  type_error(random_page, PageNumber).
+  format(
+    string(Message),
+    "Type error for HTTP parameter `random_page' value `~d'.",
+    [PageNumber]
+  ),
+  throw(error(http_server(_{message: Message, status: 400}))).
 random_page_number(_, _).
 
 
@@ -1175,12 +1171,12 @@ uri_encode(Uri1, Uri2) :-
 
 % HTML STYLE %
 
-html:rest_exception(400) :-
+html:rest_exception(Dict) :-
   html_page(
-    page(_,["Error","Bad Request"],_),
+    page(_,["HTTP error",Dict.status],_),
     [],
     [
-      p("Bad request"),
+      p(Dict.message),
       p(a(href='/',"Return to root"))
     ]
   ).
