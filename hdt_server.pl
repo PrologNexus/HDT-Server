@@ -1075,7 +1075,7 @@ hdt_graph_(Hdt, G) :-
 hdt_graph_(Hdt, G) :-
   hdt_graph(Hdt, G).
 hdt_graph_(_, G) :-
-  format(string(Message), "Graph ~a does not exist.", [G]),
+  format(string(Message), "Graph `~a' does not exist.", [G]),
   throw(error(http_server(_{message: Message, status: 400}))).
 
 
