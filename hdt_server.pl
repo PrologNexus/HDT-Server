@@ -8,7 +8,6 @@
 
 :- use_module(library(aggregate)).
 :- use_module(library(apply)).
-:- use_module(library(error)).
 :- use_module(library(http/http_dispatch)).
 :- use_module(library(http/http_path)).
 :- use_module(library(semweb/rdf_db), [
@@ -29,6 +28,7 @@
 :- use_module(library(html/html_pagination)).
 :- use_module(library(html/rdf_html)).
 :- use_module(library(http/http_pagination)).
+:- use_module(library(http/http_resource), []).
 :- use_module(library(http/http_server)).
 :- use_module(library(media_type)).
 :- use_module(library(pagination)).
