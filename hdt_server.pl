@@ -9,8 +9,8 @@
 :- use_module(library(aggregate)).
 :- use_module(library(apply)).
 :- use_module(library(atom_ext)).
-:- use_module(library(dcg/dcg_ext)).
-:- use_module(library(dict_ext)).
+:- use_module(library(dcg_ext)).
+:- use_module(library(dict)).
 :- use_module(library(error)).
 :- use_module(library(html/html_doc)).
 :- use_module(library(html/html_ext)).
@@ -27,7 +27,7 @@
 :- use_module(library(semweb/rdf_export)).
 :- use_module(library(semweb/turtle)).
 :- use_module(library(settings)).
-:- use_module(library(uri/uri_ext)).
+:- use_module(library(uri_ext)).
 :- use_module(library(yall)).
 
 :- dynamic
