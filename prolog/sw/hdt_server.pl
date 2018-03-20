@@ -3,7 +3,7 @@
 /** <module> HDT server
 
 @author Wouter Beek
-@version 2017/05-2017/12
+@version 2017-2018
 */
 
 :- use_module(library(aggregate)).
