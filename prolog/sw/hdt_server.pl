@@ -104,7 +104,7 @@
     html:menu_item/2,
     html:menu_item/3,
     html:rest_exception/1,
-    html_doc:custom_param_type//3,
+    http:media_types/2,
     user:body//2,
     user:head//2.
 
