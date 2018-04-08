@@ -48,6 +48,8 @@
 
 :- http_handler(/, home_handler,
                 [methods([get,head,options])]).
+:- http_handler(/, not_found_handler,
+                [methods([get,head,options]),prefix,priority(-1)]).
 :- http_handler(root(doc), doc_handler,
                 [methods([get,head,options])]).
 :- http_handler(root(node), node_handler,
@@ -273,6 +275,37 @@ http:params(triple_count_handler, [g,graph,o,object,p,predicate,s,subject]).
 http:params(triple_id_handler, [g,graph,o,object,page,page_size,p,predicate,s,subject]).
 
 :- set_setting(http:products, ["HDT-Server"-"v0.0.5"]).
+
+
+
+
+
+% NOT FOUND %
+
+% 404
+not_found_handler(Request) :-
+  rest_method(Request, not_found_method(Request)).
+
+% 404: GET,HEAD
+not_found_method(Request, Method, MediaTypes) :-
+  http_is_get(Method),
+  memberchk(request_uri(Uri), Request),
+  rest_media_type(MediaTypes, not_found_media_type(Uri)).
+
+% 404: GET,HEAD: application/json
+not_found_media_type(Uri, media(application/json,_)) :-
+  format(string(Msg), "Path ‘~a’ does not exist on this server.", [Uri]),
+  http_reply_json(_{message: Msg, status: 404}).
+% 404: GET,HEAD: text/html
+not_found_media_type(Uri, media(text/html,_)) :-
+  html_page(
+    page(_,["Not Found"],Uri),
+    [],
+    [
+      h1(["Path Not Found: ",code(Uri)]),
+      p(a(href='/',"↩ Return to root"))
+    ]
+  ).
 
 
 
