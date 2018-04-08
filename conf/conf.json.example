@@ -1,10 +1,14 @@
 {
   "hdt": {
+    "default": "GRAPH_NAME",
     "graphs": [
       {
-        "default": true,
         "file": "PATH",
-        "name": "NAME"
+        "name": "GRAPH_NAME"
+      },
+      {
+        "file": "PATH",
+        "name": "GRAPH_NAME"
       }
     ]
   }
