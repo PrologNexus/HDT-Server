@@ -30,6 +30,7 @@
 :- use_module(library(http/http_pagination)).
 :- use_module(library(http/http_resource), []).
 :- use_module(library(http/http_server)).
+:- use_module(library(http/rdf_http)).
 :- use_module(library(media_type)).
 :- use_module(library(pagination)).
 :- use_module(library(sw/hdt_db)).
@@ -326,22 +327,22 @@ graph_media_type(G, media(text/html,_)) :-
 graph_rows(G) -->
   {
     hdt_graph(Hdt, G),
-    graph_options_(G, QueryComps),
-    http_link_to_id(node_handler, QueryComps, NodesUri),
+    rdf_http_graph_query(G, Query),
+    http_link_to_id(node_handler, Query, NodesUri),
     hdt_term_count(Hdt, node, Nodes),
-    http_link_to_id(object_handler, QueryComps, ObjectsUri),
+    http_link_to_id(object_handler, Query, ObjectsUri),
     hdt_term_count(Hdt, object, Objects),
-    http_link_to_id(predicate_handler, QueryComps, PredicatesUri),
+    http_link_to_id(predicate_handler, Query, PredicatesUri),
     hdt_term_count(Hdt, predicate, Predicates),
-    http_link_to_id(shared_handler, QueryComps, SharedUri),
+    http_link_to_id(shared_handler, Query, SharedUri),
     hdt_term_count(Hdt, shared, Shared),
-    http_link_to_id(sink_handler, QueryComps, SinksUri),
+    http_link_to_id(sink_handler, Query, SinksUri),
     hdt_term_count(Hdt, sink, Sinks),
-    http_link_to_id(source_handler, QueryComps, SourcesUri),
+    http_link_to_id(source_handler, Query, SourcesUri),
     hdt_term_count(Hdt, source, Sources),
-    http_link_to_id(subject_handler, QueryComps, SubjectsUri),
+    http_link_to_id(subject_handler, Query, SubjectsUri),
     hdt_term_count(Hdt, subject, Subjects),
-    http_link_to_id(triple_handler, QueryComps, TriplesUri),
+    http_link_to_id(triple_handler, Query, TriplesUri),
     hdt_triple_count(Hdt, _, _, _, Triples)
   },
   html([
@@ -376,11 +377,11 @@ graphs_table(Gs) -->
 graph_row(G) -->
   {
     hdt_graph(Hdt, G),
-    graph_options_(G, QueryComps),
+    rdf_http_graph_query(G, Query),
     % name
-    http_link_to_id(home_handler, QueryComps, GraphUri),
+    http_link_to_id(home_handler, Query, GraphUri),
     % number of triples
-    http_link_to_id(triple_handler, QueryComps, TriplesUri),
+    http_link_to_id(triple_handler, Query, TriplesUri),
     hdt_triple_count(Hdt, _, _, _, NumTriples),
     % TBD: modified
     once(hdt:hdt_triple_(Hdt, header, 0, _, '<http://purl.org/dc/terms/issued>', Modified)),
@@ -604,39 +605,39 @@ html_term_table(Hdt, Uri, G, Terms) -->
 
 html_term_row(Hdt, G, Term) -->
   {
-    graph_options_(G, T),
-    rdf_term_to_atom(Term, Atom)
+    rdf_http_graph_query(G, Query),
+    rdf_term_to_atom(Term, TermAtom)
   },
   html(
     li([
       \rdf_html_term(Term, _{format: ntuples}),
       " 〈",
-      \html_term_subject_link(Hdt, Term, Atom, T),
+      \html_term_subject_link(Hdt, Term, TermAtom, Query),
       ", ",
-      \html_term_predicate_link(Hdt, Term, Atom, T),
+      \html_term_predicate_link(Hdt, Term, TermAtom, Query),
       ", ",
-      \html_term_object_link(Hdt, Term, Atom, T),
+      \html_term_object_link(Hdt, Term, TermAtom, Query),
       "〉"
     ])
   ).
 
-html_term_object_link(Hdt, Term, Atom, T) -->
-  {hdt_triple(Hdt, _, _, Term)}, !,
-  {http_link_to_id(triple_handler, [o(Atom)|T], Uri)},
+html_term_object_link(Hdt, O, OAtom, Query) -->
+  {hdt_triple(Hdt, _, _, O)}, !,
+  {http_link_to_id(triple_handler, [o(OAtom)|Query], Uri)},
   html(a(href=Uri, "o")).
 html_term_object_link(_, _, _, _) -->
   html("o").
 
-html_term_predicate_link(Hdt, Term, Atom, T) -->
-  {hdt_triple(Hdt, _, Term, _)}, !,
-  {http_link_to_id(triple_handler, [p(Atom)|T], Uri)},
+html_term_predicate_link(Hdt, P, PAtom, Query) -->
+  {hdt_triple(Hdt, _, P, _)}, !,
+  {http_link_to_id(triple_handler, [p(PAtom)|Query], Uri)},
   html(a(href=Uri, "o")).
 html_term_predicate_link(_, _, _, _) -->
   html("p").
 
-html_term_subject_link(Hdt, Term, Atom, T) -->
-  {hdt_triple(Hdt, Term, _, _)}, !,
-  {http_link_to_id(triple_handler, [s(Atom)|T], Uri)},
+html_term_subject_link(Hdt, S, SAtom, Query) -->
+  {hdt_triple(Hdt, S, _, _)}, !,
+  {http_link_to_id(triple_handler, [s(SAtom)|Query], Uri)},
   html(a(href=Uri, "s")).
 html_term_subject_link(_, _, _, _) -->
   html("s").
@@ -749,37 +750,37 @@ html_term_id_table(Uri, G, Ids) -->
   ]).
 
 html_term_id_row(G, id(TripleRole,Id)) -->
-  {graph_options_(G, T)},
+  {rdf_http_graph_query(G, Query)},
   html(
     li([
       Id,
       " 〈",
-      \html_term_id_subject_link(TripleRole, Id, T),
+      \html_term_id_subject_link(TripleRole, Id, Query),
       ", ",
-      \html_term_id_predicate_link(TripleRole, Id, T),
+      \html_term_id_predicate_link(TripleRole, Id, Query),
       ", ",
-      \html_term_id_object_link(TripleRole, Id, T),
+      \html_term_id_object_link(TripleRole, Id, Query),
       "〉"
     ])
   ).
 
-html_term_id_subject_link(TripleRole, Id, T) -->
+html_term_id_subject_link(TripleRole, SId, Query) -->
   {role_subrole(subject, TripleRole)}, !,
-  {http_link_to_id(triple_id_handler, [s(Id)|T], Uri)},
+  {http_link_to_id(triple_id_handler, [s(SId)|Query], Uri)},
   html(a(href=Uri, "s")).
 html_term_id_subject_link(_, _, _) -->
   html("s").
 
-html_term_id_predicate_link(TripleRole, Id, T) -->
+html_term_id_predicate_link(TripleRole, PId, Query) -->
   {role_subrole(predicate, TripleRole)}, !,
-  {http_link_to_id(triple_id_handler, [p(Id)|T], Uri)},
+  {http_link_to_id(triple_id_handler, [p(PId)|Query], Uri)},
   html(a(href=Uri, "p")).
 html_term_id_predicate_link(_, _, _) -->
   html("p").
 
-html_term_id_object_link(TripleRole, Id, T) -->
+html_term_id_object_link(TripleRole, OId, Query) -->
   {role_subrole(object, TripleRole)}, !,
-  {http_link_to_id(triple_id_handler, [o(Id)|T], Uri)},
+  {http_link_to_id(triple_id_handler, [o(OId)|Query], Uri)},
   html(a(href=Uri, "o")).
 html_term_id_object_link(_, _, _) -->
   html("o").
@@ -828,13 +829,13 @@ triple_method(Request, Method, MediaTypes) :-
         true
       ),
       (   var(E2)
-      ->  include(ground, [g(GAtom),s(SAtom),p(PAtom),o(OAtom)], QueryComps),
+      ->  include(ground, [g(GAtom),s(SAtom),p(PAtom),o(OAtom)], Query),
           memberchk(request_uri(RelUri), Request),
           http_absolute_uri(RelUri, Uri),
           Options = _{
             page_number: PageNumber,
             page_size: PageSize,
-            query: QueryComps,
+            query: Query,
             uri: Uri
           },
           (   Random == true
@@ -1023,13 +1024,13 @@ triple_id_method(Request, Method, MediaTypes) :-
         true
       ),
       (   var(E2)
-      ->  include(ground, [s(SAtom),p(PAtom),o(OAtom),g(GAtom)], QueryComps),
+      ->  include(ground, [s(SAtom),p(PAtom),o(OAtom),g(GAtom)], Query),
           memberchk(request_uri(RelUri), Request),
           http_absolute_uri(RelUri, Uri),
           Options = _{
             page_number: PageNumber,
             page_size: PageSize,
-            query: QueryComps,
+            query: Query,
             uri: Uri
           },
           (   Random == true
@@ -1092,14 +1093,18 @@ html_triple_id_table(Uri, G, Triples) -->
 
 html_triple_id_row(Uri, G, rdf(id(STripleRole,SId),id(PTripleRole,PId),id(OTripleRole,OId))) -->
   {
-    graph_options_(G, T1),
-    T2 = [id(true)|T1],
+    rdf_http_graph_query(G, Query1),
+    Query2 = [id(true)|Query1],
     maplist(
       id_query_,
       [id(STripleRole,SId),id(PTripleRole,PId),id(OTripleRole,OId)],
       [SH,PH,OH]
     ),
-    maplist(uri_comp_set(query, Uri), [[SH|T2],[PH|T2],[OH|T2]], [SUri,PUri,OUri])
+    maplist(
+      uri_comp_set(query, Uri),
+      [[SH|Query2],[PH|Query2],[OH|Query2]],
+      [SUri,PUri,OUri]
+    )
   },
   html(
     tr([
@@ -1117,15 +1122,6 @@ id_query_(id(TripleRole,Id), Query) :-
 
 
 % GENERICS %
-
-%! graph_options_(+G:rdf_graph, -Options:list(compound)) is det.
-
-graph_options_(G, []) :-
-  rdf_default_graph(G), !.
-graph_options_(G, [g(GAtom)]) :-
-  rdf_term_to_atom(G, GAtom).
-
-
 
 %! hdt_graph_(-Hdt:blob, ?G:atom) is det.
 
