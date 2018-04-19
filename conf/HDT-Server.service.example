@@ -10,14 +10,14 @@ StartLimitInterval=60
 LimitNOFILE=1000
 WorkingDirectory=/home/wbeek/git/HDT-Server
 ExecStart=/home/wbeek/bin/swipl \
-   run.pl \
+   script/run_server.pl \
    --http \
    --redirect \
    --https \
    --no-fork \
    --user=wbeek \
    --workers=16 \
-   --conf=conf.json
+   --conf=conf/conf.json
 
 [Install]
 WantedBy=multi-user.target
