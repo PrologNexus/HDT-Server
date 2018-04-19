@@ -379,7 +379,7 @@ graph_row(G) -->
     hdt_graph(Hdt, G),
     rdf_http_graph_query(G, Query),
     % name
-    http_link_to_id(home_handler, Query, GraphUri),
+    http_link_to_id(home_handler, Query, Uri),
     % number of triples
     http_link_to_id(triple_handler, Query, TriplesUri),
     hdt_triple_count(Hdt, _, _, _, NumTriples),
@@ -390,7 +390,7 @@ graph_row(G) -->
   },
   html(
     tr([
-      td(a(href=GraphUri,code(G))),
+      td(a(href=Uri,code(G))),
       td(a(href=TriplesUri,\html_thousands(NumTriples))),
       td(Modified),
       td(Source)
@@ -1342,7 +1342,11 @@ html_graph(G) -->
   {var(G)}, !,
   "".
 html_graph(G) -->
-  html(["Currently querying: ",G]).
+  {
+    rdf_http_graph_query(G, Query),
+    http_link_to_id(home_handler, Query, Uri)
+  },
+  html(["Querying graph: ",a(href=Uri,code(G))]).
 
 html_to_root -->
   html(p(a(href='/',"↩ Return to root"))).
