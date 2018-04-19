@@ -1,6 +1,5 @@
 {
   "hdt": {
-    "default": "GRAPH_NAME",
     "graphs": [
       {
         "file": "PATH",
