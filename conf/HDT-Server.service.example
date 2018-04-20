@@ -12,9 +12,6 @@ WorkingDirectory=/home/wbeek/git/HDT-Server
 ExecStart=/home/wbeek/bin/swipl \
    script/run_server.pl \
    --http \
-   --redirect \
-   --https \
-   --no-fork \
    --user=wbeek \
    --workers=16 \
    --conf=conf/conf.json
