@@ -47,60 +47,34 @@
     http:param/2,
     http:params/2.
 
-:- http_handler(/, home_handler,
-                [methods([get,head,options])]).
-:- http_handler(/, not_found_handler,
-                [methods([get,head,options]),prefix,priority(-1)]).
-:- http_handler(root(doc), doc_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(node), node_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(node/count), node_count_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(node/id), node_id_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(object), object_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(object/count), object_count_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(object/id), object_id_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(predicate), predicate_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(predicate/count), predicate_count_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(predicate/id), predicate_id_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(shared), shared_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(shared/count), shared_count_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(shared/id), shared_id_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(sink), sink_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(sink/count), sink_count_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(sink/id), sink_id_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(source), source_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(source/count), source_count_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(source/id), source_id_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(subject), subject_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(subject/count), subject_count_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(subject/id), subject_id_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(triple), triple_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(triple/count), triple_count_handler,
-                [methods([get,head,options])]).
-:- http_handler(root(triple/id), triple_id_handler,
-                [methods([get,head,options])]).
+:- http_handler(/, home_handler, [methods([get,head,options])]).
+:- http_handler(/, not_found_handler, [methods([get,head,options]),prefix,priority(-1)]).
+:- http_handler(root(doc), doc_handler, [methods([get,head,options])]).
+:- http_handler(root(node), node_handler, [methods([get,head,options])]).
+:- http_handler(root(node/count), node_count_handler, [methods([get,head,options])]).
+:- http_handler(root(node/id), node_id_handler, [methods([get,head,options])]).
+:- http_handler(root(object), object_handler, [methods([get,head,options])]).
+:- http_handler(root(object/count), object_count_handler, [methods([get,head,options])]).
+:- http_handler(root(object/id), object_id_handler, [methods([get,head,options])]).
+:- http_handler(root(predicate), predicate_handler, [methods([get,head,options])]).
+:- http_handler(root(predicate/count), predicate_count_handler, [methods([get,head,options])]).
+:- http_handler(root(predicate/id), predicate_id_handler, [methods([get,head,options])]).
+:- http_handler(root(shared), shared_handler, [methods([get,head,options])]).
+:- http_handler(root(shared/count), shared_count_handler, [methods([get,head,options])]).
+:- http_handler(root(shared/id), shared_id_handler, [methods([get,head,options])]).
+:- http_handler(root(sink), sink_handler, [methods([get,head,options])]).
+:- http_handler(root(sink/count), sink_count_handler, [methods([get,head,options])]).
+:- http_handler(root(sink/id), sink_id_handler, [methods([get,head,options])]).
+:- http_handler(root(source), source_handler, [methods([get,head,options])]).
+:- http_handler(root(source/count), source_count_handler, [methods([get,head,options])]).
+:- http_handler(root(source/id), source_id_handler, [methods([get,head,options])]).
+:- http_handler(root(subject), subject_handler, [methods([get,head,options])]).
+:- http_handler(root(subject/count), subject_count_handler, [methods([get,head,options])]).
+:- http_handler(root(subject/id), subject_id_handler, [methods([get,head,options])]).
+:- http_handler(root(term), term_handler, [methods([get,head,options])]).
+:- http_handler(root(triple), triple_handler, [methods([get,head,options])]).
+:- http_handler(root(triple/count), triple_count_handler, [methods([get,head,options])]).
+:- http_handler(root(triple/id), triple_id_handler, [methods([get,head,options])]).
 
 :- multifile
     html:handler_description/2,
@@ -524,6 +498,9 @@ subject_id_handler(Request) :-
 
 
 % /term
+term_handler(Request) :-
+  term_handler(Request, term).
+
 term_handler(Request, TermRole) :-
   rest_method(Request, term_method(Request, TermRole)).
 
