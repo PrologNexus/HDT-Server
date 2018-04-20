@@ -48,7 +48,6 @@
     http:params/2.
 
 :- http_handler(/, home_handler, [methods([get,head,options])]).
-:- http_handler(/, not_found_handler, [methods([get,head,options]),prefix,priority(-1)]).
 :- http_handler(root(doc), doc_handler, [methods([get,head,options])]).
 :- http_handler(root(node), node_handler, [methods([get,head,options])]).
 :- http_handler(root(node/count), node_count_handler, [methods([get,head,options])]).
@@ -80,7 +79,8 @@
     html:handler_description/2,
     html:menu_item/2,
     html:menu_item/3,
-    html:rest_exception/1,
+    html:page_exception/2,
+    http:error_status_message/3,
     http:media_types/2,
     user:body//2,
     user:head//2.
@@ -114,6 +114,13 @@ html:menu_item(term, "Terms").
 %  html:menu_item(term_id, subject_id_handler, "Subject IDs").
 html:menu_item(triple_handler, "Triples").
 %html:menu_item(triple_id_handler, "Triple IDs").
+
+http:error_status_message(rdf(cannot_parse(rdf_term,Atom)), 400, Msg) :-
+  format(
+    string(Msg),
+    "😿 Your request is incorrect!  You have specified the value ‘~a’, but this cannot be parsed as an RDF term.",
+    [Atom]
+  ).
 
 http:media_types(home_handler, [media(text/html,[])]).
 http:media_types(doc_handler, [media(text/html,[])]).
@@ -269,20 +276,17 @@ home_method(Request, Method, MediaTypes) :-
     Request,
     [g(GAtom),graph(GAtom),page(PageNumber),page_size(PageSize)]
   ),
-  catch(parse_rdf_graph_(GAtom, G), E, true),
-  (   var(E)
-  ->  memberchk(request_uri(RelUri), Request),
-      http_absolute_uri(RelUri, Uri),
-      (   var(G)
-      ->  pagination_bulk(
-            [Gs]>>aggregate_all(set(G), hdt_graph(G), Gs),
-            _{page_number: PageNumber, page_size: PageSize, uri: Uri},
-            Page
-          ),
-          rest_media_type(MediaTypes, home_media_type(Page))
-      ;   rest_media_type(MediaTypes, graph_media_type(G))
-      )
-  ;   rest_media_type(MediaTypes, error_media_type(E))
+  parse_rdf_graph_(GAtom, G),
+  memberchk(request_uri(RelUri), Request),
+  http_absolute_uri(RelUri, Uri),
+  (   var(G)
+  ->  pagination_bulk(
+        [Gs]>>aggregate_all(set(G), hdt_graph(G), Gs),
+        _{page_number: PageNumber, page_size: PageSize, uri: Uri},
+        Page
+      ),
+      rest_media_type(MediaTypes, home_media_type(Page))
+  ;   rest_media_type(MediaTypes, graph_media_type(G))
   ).
 
 % /: GET,HEAD: text/html
@@ -519,12 +523,11 @@ term_method(Request, TermRole, Method, MediaTypes) :-
     ]
   ),
   random_page_number(Random, PageNumber),
-  catch(parse_rdf_graph_(GAtom, G), E, true),
+  parse_rdf_graph_(GAtom, G),
   (   atom(Prefix),
       \+ triple_role(TermRole)
   ->  rest_media_type(MediaTypes, error_media_type(combination(prefix,TermRole)))
-  ;   var(E)
-  ->  hdt_graph_(Hdt, G),
+  ;   hdt_graph_(Hdt, G),
       memberchk(request_uri(RelUri), Request),
       http_absolute_uri(RelUri, Uri),
       Options = _{
@@ -557,7 +560,6 @@ term_method(Request, TermRole, Method, MediaTypes) :-
           )
       ),
       rest_media_type(MediaTypes, term_media_type(Hdt, Uri, TermRole, G, Page))
-  ;   rest_media_type(MediaTypes, error_media_type(E))
   ).
 
 % /term: GET,HEAD: application/json
@@ -629,13 +631,10 @@ term_count_handler(Request, TermRole) :-
 term_count_method(Request, TermRole, Method, MediaTypes) :-
   http_is_get(Method),
   rest_parameters(Request, [g(GAtom),graph(GAtom)]),
-  catch(parse_rdf_graph_(GAtom, G), E, true),
-  (   var(E)
-  ->  hdt_graph_(Hdt, G),
-      hdt_term_count(Hdt, TermRole, Count),
-      rest_media_type(MediaTypes, term_count_media_type(G, TermRole, Count))
-  ;   rest_media_type(MediaTypes, error_media_type(E))
-  ).
+  parse_rdf_graph_(GAtom, G),
+  hdt_graph_(Hdt, G),
+  hdt_term_count(Hdt, TermRole, Count),
+  rest_media_type(MediaTypes, term_count_media_type(G, TermRole, Count)).
 
 % /term/count: GET,HEAD: application/json
 term_count_media_type(_, _, Count, media(application/json,_)) :-
@@ -666,11 +665,10 @@ term_id_method(Request, TripleRole, Method, MediaTypes) :-
     ]
   ),
   random_page_number(Random, PageNumber),
-  catch(parse_rdf_graph_(GAtom, G), E, true),
+  parse_rdf_graph_(GAtom, G),
   (   \+ triple_role(TripleRole)
   ->  rest_media_type(MediaTypes, error_media_type(combination(id,TripleRole)))
-  ;   var(E)
-  ->  hdt_graph_(Hdt, G),
+  ;   hdt_graph_(Hdt, G),
       memberchk(request_uri(RelUri), Request),
       http_absolute_uri(RelUri, Uri),
       Options = _{
@@ -703,7 +701,6 @@ term_id_method(Request, TripleRole, Method, MediaTypes) :-
           )
       ),
       rest_media_type(MediaTypes, term_id_media_type(Uri, TripleRole, G, Page))
-  ;   rest_media_type(MediaTypes, error_media_type(E))
   ).
 
 % /term/id: GET,HEAD: application/json
@@ -792,61 +789,51 @@ triple_method(Request, Method, MediaTypes) :-
     ]
   ),
   random_page_number(Random, PageNumber),
-  catch(parse_rdf_graph_(GAtom, G), E1, true),
-  (   var(E1)
-  ->  hdt_graph_(Hdt, G),
-      catch(
-        maplist(
-          parse_rdf_term_(Hdt),
-          [subject,predicate,object],
-          [SAtom,PAtom,OAtom],
-          [S,P,O]
-        ),
-        E2,
-        true
-      ),
-      (   var(E2)
-      ->  include(ground, [g(GAtom),s(SAtom),p(PAtom),o(OAtom)], Query),
-          memberchk(request_uri(RelUri), Request),
-          http_absolute_uri(RelUri, Uri),
-          Options = _{
-            page_number: PageNumber,
-            page_size: PageSize,
-            query: Query,
-            uri: Uri
-          },
-          (   Random == true
-          ->  RandomOptions = Options.put(_{single_page: true}),
-              pagination(
-                rdf(S,P,O),
-                hdt_triple_random_(Hdt, S, P, O),
-                RandomOptions,
-                Page
-              )
-          ;   Offset is (PageNumber - 1) * PageSize,
-              findall(
-                rdf(S,P,O),
-                limit(PageSize, hdt_triple(Hdt, Offset, S, P, O)),
-                Results
-              ),
-              length(Results, NumResults),
-              hdt_triple_count(Hdt, S, P, O, TotalNumResults),
-              merge_dicts(
-                _{
-                  number_of_results: NumResults,
-                  results: Results,
-                  single_page: false,
-                  total_number_of_results: TotalNumResults
-                },
-                Options,
-                Page
-              )
-          ),
-          rest_media_type(MediaTypes, triple_media_type(Uri, G, Page))
-      ;   rest_media_type(MediaTypes, error_media_type(E2))
+  parse_rdf_graph_(GAtom, G),
+  hdt_graph_(Hdt, G),
+  maplist(
+    parse_rdf_term_(Hdt),
+    [subject,predicate,object],
+    [SAtom,PAtom,OAtom],
+    [S,P,O]
+  ),
+  include(ground, [g(GAtom),s(SAtom),p(PAtom),o(OAtom)], Query),
+  memberchk(request_uri(RelUri), Request),
+  http_absolute_uri(RelUri, Uri),
+  Options = _{
+    page_number: PageNumber,
+    page_size: PageSize,
+    query: Query,
+    uri: Uri
+  },
+  (   Random == true
+  ->  RandomOptions = Options.put(_{single_page: true}),
+      pagination(
+        rdf(S,P,O),
+        hdt_triple_random_(Hdt, S, P, O),
+        RandomOptions,
+        Page
       )
-  ;   rest_media_type(MediaTypes, error_media_type(E1))
-  ).
+  ;   Offset is (PageNumber - 1) * PageSize,
+      findall(
+        rdf(S,P,O),
+        limit(PageSize, hdt_triple(Hdt, Offset, S, P, O)),
+        Results
+      ),
+      length(Results, NumResults),
+      hdt_triple_count(Hdt, S, P, O, TotalNumResults),
+      merge_dicts(
+        _{
+          number_of_results: NumResults,
+          results: Results,
+          single_page: false,
+          total_number_of_results: TotalNumResults
+        },
+        Options,
+        Page
+      )
+  ),
+  rest_media_type(MediaTypes, triple_media_type(Uri, G, Page)).
 
 % /triple: GET,HEAD: application/n-quads
 triple_media_type(_, _, Page, media(application/'n-quads',_)) :-
@@ -933,26 +920,16 @@ triple_count_method(Request, Method, MediaTypes) :-
       subject(SAtom)
     ]
   ),
-  catch(parse_rdf_graph_(GAtom, G), E1, true),
-  (   var(E1)
-  ->  hdt_graph_(Hdt, G),
-      catch(
-        maplist(
-          parse_rdf_term_(Hdt),
-          [subject,predicate,object],
-          [SAtom,PAtom,OAtom],
-          [S,P,O]
-        ),
-        E2,
-        true
-      ),
-      (   var(E2)
-      ->  hdt_triple_count(Hdt, S, P, O, Count),
-          rest_media_type(MediaTypes, triple_count_media_type(G, Count))
-      ;   rest_media_type(MediaTypes, error_media_type(E2))
-      )
-  ;   rest_media_type(MediaTypes, error_media_type(E1))
-  ).
+  parse_rdf_graph_(GAtom, G),
+  hdt_graph_(Hdt, G),
+  maplist(
+    parse_rdf_term_(Hdt),
+    [subject,predicate,object],
+    [SAtom,PAtom,OAtom],
+    [S,P,O]
+  ),
+  hdt_triple_count(Hdt, S, P, O, Count),
+  rest_media_type(MediaTypes, triple_count_media_type(G, Count)).
 
 % /triple/count: GET,HEAD: application/json
 triple_count_media_type(_, Count, media(application/json,_)) :-
@@ -987,64 +964,54 @@ triple_id_method(Request, Method, MediaTypes) :-
     ]
   ),
   random_page_number(Random, PageNumber),
-  catch(parse_rdf_graph_(GAtom, G), E1, true),
-  (   var(E1)
-  ->  hdt_graph_(Hdt, G),
-      catch(
-        maplist(
-          parse_rdf_term_(Hdt),
-          [subject,predicate,object],
-          [SAtom,PAtom,OAtom],
-          [S,P,O]
-        ),
-        E2,
-        true
-      ),
-      (   var(E2)
-      ->  include(ground, [s(SAtom),p(PAtom),o(OAtom),g(GAtom)], Query),
-          memberchk(request_uri(RelUri), Request),
-          http_absolute_uri(RelUri, Uri),
-          Options = _{
-            page_number: PageNumber,
-            page_size: PageSize,
-            query: Query,
-            uri: Uri
-          },
-          (   Random == true
-          ->  RandomOptions = Options.put(_{single_page: true}),
-              pagination(
-                IdTriple,
-                hdt_triple_random_id(Hdt, S, P, O, IdTriple),
-                RandomOptions,
-                Page
-              )
-          ;   Offset is (PageNumber - 1) * PageSize,
-              findall(
-                IdTriple,
-                limit(PageSize, (
-                  hdt_triple(Hdt, Offset, S, P, O),
-                  hdt_triple_id(Hdt, rdf(S,P,O), IdTriple)
-                )),
-                Results
-              ),
-              length(Results, NumResults),
-              hdt_triple_count(Hdt, S, P, O, TotalNumResults),
-              merge_dicts(
-                _{
-                  number_of_results: NumResults,
-                  results: Results,
-                  single_page: false,
-                  total_number_of_results: TotalNumResults
-                },
-                Options,
-                Page
-              )
-          ),
-          rest_media_type(MediaTypes, triple_id_media_type(G, Page))
-      ;   rest_media_type(MediaTypes, error_media_type(E2))
+  parse_rdf_graph_(GAtom, G),
+  hdt_graph_(Hdt, G),
+  maplist(
+    parse_rdf_term_(Hdt),
+    [subject,predicate,object],
+    [SAtom,PAtom,OAtom],
+    [S,P,O]
+  ),
+  include(ground, [s(SAtom),p(PAtom),o(OAtom),g(GAtom)], Query),
+  memberchk(request_uri(RelUri), Request),
+  http_absolute_uri(RelUri, Uri),
+  Options = _{
+    page_number: PageNumber,
+    page_size: PageSize,
+    query: Query,
+    uri: Uri
+  },
+  (   Random == true
+  ->  RandomOptions = Options.put(_{single_page: true}),
+      pagination(
+        IdTriple,
+        hdt_triple_random_id(Hdt, S, P, O, IdTriple),
+        RandomOptions,
+        Page
       )
-  ;   rest_media_type(MediaTypes, error_media_type(E1))
-  ).
+  ;   Offset is (PageNumber - 1) * PageSize,
+      findall(
+        IdTriple,
+        limit(PageSize, (
+          hdt_triple(Hdt, Offset, S, P, O),
+          hdt_triple_id(Hdt, rdf(S,P,O), IdTriple)
+        )),
+        Results
+      ),
+      length(Results, NumResults),
+      hdt_triple_count(Hdt, S, P, O, TotalNumResults),
+      merge_dicts(
+        _{
+          number_of_results: NumResults,
+          results: Results,
+          single_page: false,
+          total_number_of_results: TotalNumResults
+        },
+        Options,
+        Page
+      )
+  ),
+  rest_media_type(MediaTypes, triple_id_media_type(G, Page)).
 
 % /triple/id: GET,HEAD: application/json
 triple_id_media_type(_, Page, media(application/json,_)) :-
@@ -1235,7 +1202,7 @@ error_media_type(E, media(text/html,_)) :-
   html_page(
     page(_,["Client Error"],_),
     [],
-    [\html_error(E),\html_to_root]
+    [\html_error(E),p(a(href='/',"↩ Return to root"))]
   ).
 
 html_error(combination(Option1,Option2)) -->
@@ -1255,49 +1222,25 @@ type_label_(rdf_term, "RDF term").
 
 
 
-% 404
-not_found_handler(Request) :-
-  rest_method(Request, not_found_method(Request)).
-
-% 404: GET,HEAD
-not_found_method(Request, Method, MediaTypes) :-
-  http_is_get(Method),
-  memberchk(request_uri(Uri), Request),
-  rest_media_type(MediaTypes, not_found_media_type(Uri)).
-
-% 404: GET,HEAD: application/json
-not_found_media_type(Uri, media(application/json,_)) :-
-  format(string(Msg), "Path ‘~a’ does not exist on this server.", [Uri]),
-  http_reply_json(_{message: Msg, status: 404}).
-% 404: GET,HEAD: text/html
-not_found_media_type(Uri, media(text/html,_)) :-
-  html_page(
-    page(_,["Not Found"],Uri),
-    [],
-    [
-      h1(["Path Not Found: ",code(Uri)]),
-      \html_to_root
-    ]
-  ).
-
-
-
 
 
 % HTML STYLE %
 
-html:rest_exception(Dict) :-
+html:page_exception(Status, Msg) :-
   html_page(
-    page(_,["HTTP error",Dict.status],_),
+    page(_,["HTTP error",Status],_),
     [],
     [
-      p(Dict.message),
+      p(Msg),
       p(a(href='/',"Return to root"))
     ]
   ).
 
 user:head(page(Page,Subtitles,_), Content_0) -->
-  {atomics_to_string(["HDT-Server"|Subtitles], " ― ", Title)},
+  {
+    setting(http:products, [Product-_|_]),
+    atomics_to_string([Product|Subtitles], " ― ", Title)
+  },
   html(
     head([
       \html_root_attribute(lang, en),
@@ -1312,8 +1255,20 @@ user:head(page(Page,Subtitles,_), Content_0) -->
     ])
   ).
 
-user:body(page(_,_,G), Content_0) -->
-  html(body([\navbar("HDT-Server", \menu, \html_graph(G)),\row_1(Content_0)])).
+user:body(page(_,_,ExtraArgs), Content_0) -->
+  {setting(http:products, [Product-_|_])},
+  html(
+    body([
+      \navbar(Product, \menu, \extra_args(ExtraArgs)),
+      \row_1(Content_0)
+    ])
+  ).
+
+extra_args([G]) -->
+  {ground(G)}, !,
+  html_graph(G).
+extra_args(_) -->
+  html([]).
 
 html_graph(G) -->
   {var(G)}, !,
@@ -1324,6 +1279,3 @@ html_graph(G) -->
     http_link_to_id(home_handler, Query, Uri)
   },
   html(["Querying graph: ",a(href=Uri,code(G))]).
-
-html_to_root -->
-  html(p(a(href='/',"↩ Return to root"))).
