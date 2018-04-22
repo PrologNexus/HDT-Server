@@ -343,7 +343,7 @@ graph_media_type(G, media(text/html,_)) :-
 
 graph_rows(G) -->
   {
-    hdt_graph(Hdt, G),
+    hdt_graph(G, Hdt),
     rdf_http_query([g(G)], Query),
     http_link_to_id(node_handler, Query, NodesUri),
     hdt_term_count(Hdt, node, Nodes),
@@ -396,7 +396,7 @@ graphs_table(Gs) -->
 
 graph_row(G) -->
   {
-    hdt_graph(Hdt, G),
+    hdt_graph(G, Hdt),
     rdf_http_query([g(G)], Query),
     % name
     http_link_to_id(home_handler, Query, Uri),
@@ -596,7 +596,7 @@ term_method(Request, TermRole, Method, MediaTypes) :-
     page_size: PageSize,
     uri: Uri
   },
-  hdt_graph_(Hdt, G),
+  hdt_graph_(G, Hdt),
   (   Random == true
   ->  RandomOptions = Options.put(_{single_page: true}),
       pagination(
@@ -651,10 +651,10 @@ html_term_table(Hdt, Uri, G, Terms) -->
   {uri_encode(Uri, EncodeUri)},
   html([
     a(href=EncodeUri, "[encode]"),
-    ul(\html_maplist(html_term_row(Hdt, G), Terms))
+    ul(\html_maplist(html_term_row(G, Hdt), Terms))
   ]).
 
-html_term_row(Hdt, G, Term) -->
+html_term_row(G, Hdt, Term) -->
   {
     rdf_http_query([g(G),s(Term)], SQuery),
     rdf_http_query([g(G),p(Term)], PQuery),
@@ -704,7 +704,7 @@ term_count_handler(Request, TermRole) :-
 term_count_method(Request, TermRole, Method, MediaTypes) :-
   http_is_get(Method),
   rest_parameters(Request, [g(G),graph(G)]),
-  hdt_graph_(Hdt, G),
+  hdt_graph_(G, Hdt),
   hdt_term_count(Hdt, TermRole, Count),
   rest_media_type(MediaTypes, term_count_media_type(G, TermRole, Count)).
 
@@ -764,7 +764,7 @@ term_id_method(Request, TermRole, Method, MediaTypes) :-
     page_size: PageSize,
     uri: Uri
   },
-  hdt_graph_(Hdt, G),
+  hdt_graph_(G, Hdt),
   (   Random == true
   ->  RandomOptions = Options.put(_{single_page: true}),
       pagination(
@@ -903,7 +903,7 @@ triple_method(Request, Method, MediaTypes) :-
   ->  throw(error(conflicting_http_parameters([page_number,random])))
   ;   true
   ),
-  hdt_graph_(Hdt, G),
+  hdt_graph_(G, Hdt),
   rdf_http_query([s(S),p(P),o(O),g(G)], Query),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
@@ -1023,7 +1023,7 @@ triple_count_method(Request, Method, MediaTypes) :-
       s(S), subject(S)
     ]
   ),
-  hdt_graph_(Hdt, G),
+  hdt_graph_(G, Hdt),
   hdt_triple_count(Hdt, S, P, O, Count),
   rest_media_type(MediaTypes, triple_count_media_type(G, Count)).
 
@@ -1060,7 +1060,7 @@ triple_id_method(Request, Method, MediaTypes) :-
   ->  throw(error(conflicting_http_parameters([page_number,random])))
   ;   true
   ),
-  hdt_graph_(Hdt, G),
+  hdt_graph_(G, Hdt),
   rdf_http_query([s(S),p(P),o(O),g(G)], Query),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
@@ -1159,16 +1159,15 @@ id_query_(id(TripleRole,Id), Query) :-
 
 % GENERICS %
 
-%! hdt_graph_(-Hdt:blob, ?G:atom) is det.
+%! hdt_graph_(?G:atom, -Hdt:blob) is det.
 
-hdt_graph_(Hdt, G) :-
+hdt_graph_(G, Hdt) :-
   var(G), !,
   hdt_default(Hdt).
-hdt_graph_(Hdt, G) :-
-  hdt_graph(Hdt, G).
-hdt_graph_(_, G) :-
-  format(string(Msg), "Graph `~a' does not exist.", [G]),
-  throw(error(http_server(_{message: Msg, status: 400}))).
+hdt_graph_(G, Hdt) :-
+  hdt_graph(G, Hdt).
+hdt_graph_(G, _) :-
+  existence_error(hdt_graph, G).
 
 
 
