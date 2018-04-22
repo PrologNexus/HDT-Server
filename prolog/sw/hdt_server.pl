@@ -11,9 +11,7 @@
 :- use_module(library(http/http_dispatch)).
 :- use_module(library(http/http_path)).
 :- use_module(library(semweb/rdf_db), [
-     rdf_assert/3,
      rdf_save/1,
-     rdf_retractall/4,
      rdf_transaction/1
    ]).
 :- use_module(library(semweb/turtle)).
@@ -36,6 +34,7 @@
 :- use_module(library(sw/hdt_db)).
 :- use_module(library(sw/hdt_graph)).
 :- use_module(library(sw/rdf_export)).
+:- use_module(library(sw/rdf_mem)).
 :- use_module(library(sw/rdf_term)).
 :- use_module(library(uri_ext)).
 
@@ -984,8 +983,8 @@ triple_media_type(_, _, Page, MediaType) :-
   atom_phrase(media_type(MediaType), Atom),
   format("Content-Type: ~a\n\n", [Atom]),
   rdf_transaction((
-    rdf_retractall(_, _, _, _),
-    maplist(rdf_assert_, Page.results),
+    rdf_retractall_triples(_, _, _, _),
+    maplist(rdf_assert_triple, Page.results),
     uuid(File),
     (   MediaType = media(application/'rdf+xml',_)
     ->  rdf_save(File)
@@ -1001,9 +1000,6 @@ triple_media_type(_, _, Page, MediaType) :-
     ),
     delete_file(File)
   )).
-
-rdf_assert_(rdf(S,P,O)) :-
-  rdf_assert(S, P, O).
 
 rdf_media_type_(media(application/'rdf+xml',_)).
 %rdf_media_type_(media(application/trig,_)).
