@@ -133,24 +133,24 @@ html_doc:custom_param_type(Spec) -->
   {memberchk(hdt_object, Spec)}, !,
   html("HDT object term").
 
-% object
-http:convert_parameter(hdt_object, Atom, id(object,OId)) :-
-  http:convert_parameter(positive_integer, Atom, OId), !.
 http:convert_parameter(hdt_object, Atom, O) :-
-  http:convert_parameter(rdf_term, Atom, O).
-% predicate
-http:convert_parameter(hdt_predicate, Atom, id(predicate,PId)) :-
-  http:convert_parameter(positive_integer, Atom, PId), !.
+  (   atom_number(Atom, N)
+  ->  must_be(positive_integer, N),
+      O = id(object,N)
+  ;   rdf_atom_to_term(Atom, O)
+  ).
 http:convert_parameter(hdt_predicate, Atom, P) :-
-  http:convert_parameter(rdf_term, Atom, P).
-% subject
-http:convert_parameter(hdt_subject, Atom, id(subject,Id)) :-
-  http:convert_parameter(positive_integer, Atom, Id), !.
+  (   atom_number(Atom, N)
+  ->  must_be(positive_integer, N),
+      P = id(predicate,N)
+  ;   rdf_atom_to_term(Atom, P)
+  ).
 http:convert_parameter(hdt_subject, Atom, S) :-
-  http:convert_parameter(rdf_subject, Atom, S).
-% term
-http:convert_parameter(hdt_term, Atom, Term) :-
-  http:convert_parameter(rdf_term, Atom, Term).
+  (   atom_number(Atom, N)
+  ->  must_be(positive_integer, N),
+      S = id(subject,N)
+  ;   rdf_atom_to_term(Atom, S)
+  ).
 
 http:media_types(home_handler, [media(text/html,[])]).
 http:media_types(doc_handler, [media(text/html,[])]).
