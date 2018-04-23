@@ -36,6 +36,7 @@
 :- use_module(library(sw/hdt_graph)).
 :- use_module(library(sw/rdf_export)).
 :- use_module(library(sw/rdf_mem)).
+:- use_module(library(sw/rdf_prefix)).
 :- use_module(library(sw/rdf_term)).
 :- use_module(library(uri_ext)).
 
@@ -75,6 +76,9 @@
 :- http_handler(root(triple), triple_handler, [methods([get,head,options])]).
 :- http_handler(root(triple/count), triple_count_handler, [methods([get,head,options])]).
 :- http_handler(root(triple/id), triple_id_handler, [methods([get,head,options])]).
+
+:- initialization
+   rdf_assert_prefixes.
 
 :- multifile
     html:handler_description/2,
