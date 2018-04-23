@@ -3,12 +3,9 @@
     "default": "NAME",
     "graphs": [
       {
+        "context": "FILE",
         "file": "FILE",
-        "name": "NAME"
-      },
-      {
-        "file": "FILE",
-        "name": "NAME"
+        "name": "IRI"
       }
     ]
   }
