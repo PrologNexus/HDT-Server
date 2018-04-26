@@ -683,17 +683,47 @@ triple_method(Request, Method, MediaTypes) :-
   rest_media_type(MediaTypes, triple_media_type(G, Page)).
 
 % /triple: GET,HEAD: application/n-quads
-triple_media_type(_, Page, media(application/'n-quads',_)) :-
+triple_media_type(G, Page, media(application/'n-quads',_)) :-
   format("Content-Type: application/n-quads\n"),
   http_pagination_header(Page),
   nl,
-  maplist(rdf_write_tuple(current_output), Page.results).
+  maplist({G}/[Triple]>>rdf_write_quad(current_output, Triple, G), Page.results).
 % /triple: GET,HEAD: application/n-triples
 triple_media_type(_, Page, media(application/'n-triples',_)) :-
   format("Content-Type: application/n-triples\n"),
   http_pagination_header(Page),
   nl,
   maplist(rdf_write_triple(current_output), Page.results).
+% /triple: GET,HEAD: application/trig
+triple_media_type(G, Page, media(application/trig,_)) :-
+  format("Content-Type: application/trig\n"),
+  http_pagination_header(Page),
+  nl,
+  rdf_write_name(current_output, G),
+  format(current_output, " {\n", []),
+  maplist(rdf_write_triple(current_output), Page.results),
+  format(current_output, "}\n", []).
+% /triple: GET,HEAD: application/rdf+xml, text/turtle
+triple_media_type(_, Page, MediaType) :-
+  rdf_media_type_(MediaType),
+  atom_phrase(media_type(MediaType), Atom),
+  format("Content-Type: ~a\n\n", [Atom]),
+  rdf_transaction((
+    rdf_retractall_triples(_, _, _, _),
+    maplist(rdf_assert_triple, Page.results),
+    uuid(File),
+    (   MediaType = media(application/'rdf+xml',_)
+    ->  rdf_save(File)
+    ;   MediaType = media(text/turtle,_)
+    ->  rdf_save_canonical_turtle(File, [])
+    ),
+    setup_call_cleanup(
+      open(File, read, In),
+      copy_stream_data(In, current_output),
+      close(In)
+    ),
+    delete_file(File)
+  )).
 % /triple: GET,HEAD: text/html
 triple_media_type(G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
@@ -712,32 +742,8 @@ triple_media_type(G, Page, media(text/html,_)) :-
       )
     ]
   ).
-% /triple: GET,HEAD: application/rdf+xml, application/trig, text/turtle
-triple_media_type(_, _, Page, MediaType) :-
-  rdf_media_type_(MediaType),
-  atom_phrase(media_type(MediaType), Atom),
-  format("Content-Type: ~a\n\n", [Atom]),
-  rdf_transaction((
-    rdf_retractall_triples(_, _, _, _),
-    maplist(rdf_assert_triple, Page.results),
-    uuid(File),
-    (   MediaType = media(application/'rdf+xml',_)
-    ->  rdf_save(File)
-    %;   MediaType = media(application/trig,_)
-    %->  rdf_save_canonical_trig(File, [])
-    ;   MediaType = media(text/turtle,_)
-    ->  rdf_save_canonical_turtle(File, [])
-    ),
-    setup_call_cleanup(
-      open(File, read, In),
-      copy_stream_data(In, current_output),
-      close(In)
-    ),
-    delete_file(File)
-  )).
 
 rdf_media_type_(media(application/'rdf+xml',_)).
-%rdf_media_type_(media(application/trig,_)).
 rdf_media_type_(media(text/turtle,_)).
 
 
@@ -779,7 +785,7 @@ triple_count_media_type(G, Count, media(text/html,_)) :-
 
 hdt_graph_(G, Hdt) :-
   var(G), !,
-  hdt_default(Hdt).
+  hdt_default_graph(G, Hdt).
 hdt_graph_(G, Hdt) :-
   hdt_graph(G, Hdt).
 hdt_graph_(G, _) :-
