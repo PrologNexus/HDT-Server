@@ -31,7 +31,6 @@
 :- use_module(library(http/rdf_http)).
 :- use_module(library(media_type)).
 :- use_module(library(pagination)).
-%:- use_module(library(sw/graphql_http)).
 :- use_module(library(sw/hdt_db)).
 :- use_module(library(sw/hdt_graph)).
 :- use_module(library(sw/rdf_export)).
@@ -409,49 +408,49 @@ node_handler(Request) :-
   term_handler_(Request, node).
 % /node/count
 node_count_handler(Request) :-
-  term_count_handler(Request, node).
+  term_count_handler_(Request, node).
 
 % /object
 object_handler(Request) :-
   term_handler_(Request, object).
 % /object/count
 object_count_handler(Request) :-
-  term_count_handler(Request, object).
+  term_count_handler_(Request, object).
 
 % /predicate
 predicate_handler(Request) :-
   term_handler_(Request, predicate).
 % /predicate/count
 predicate_count_handler(Request) :-
-  term_count_handler(Request, predicate).
+  term_count_handler_(Request, predicate).
 
 % /shared
 shared_handler(Request) :-
   term_handler_(Request, shared).
 % /shared/count
 shared_count_handler(Request) :-
-  term_count_handler(Request, shared).
+  term_count_handler_(Request, shared).
 
 % /sink
 sink_handler(Request) :-
   term_handler_(Request, sink).
 % /sink/count
 sink_count_handler(Request) :-
-  term_count_handler(Request, sink).
+  term_count_handler_(Request, sink).
 
 % /source
 source_handler(Request) :-
   term_handler_(Request, source).
 % /source/count
 source_count_handler(Request) :-
-  term_count_handler(Request, source).
+  term_count_handler_(Request, source).
 
 % /subject
 subject_handler(Request) :-
   term_handler_(Request, subject).
 % /subject/count
 subject_count_handler(Request) :-
-  term_count_handler(Request, subject).
+  term_count_handler_(Request, subject).
 
 
 
@@ -589,7 +588,10 @@ html_term_object_link(_, _, _) -->
 
 
 % /term/count
-term_count_handler(Request, TermRole) :-
+term_count_handler(Request) :-
+  term_count_handler_(Request, term).
+
+term_count_handler_(Request, TermRole) :-
   rest_method(Request, term_count_method(Request, TermRole)).
 
 % /term/count: GET,HEAD
