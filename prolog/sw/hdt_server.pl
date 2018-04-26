@@ -490,12 +490,14 @@ term_method(Request, TermRole, Method, MediaTypes) :-
   ;   true
   ),
   http_parameter_conflict(prefix(Prefix), term(Term)),
+  rdf_http_query([g(G)], Query),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
   Options = _{
     graph: G,
     page_number: PageNumber,
     page_size: PageSize,
+    query: Query,
     uri: Uri
   },
   hdt_graph_(G, Hdt),
