@@ -809,18 +809,16 @@ term_id_method(Request, TermRole, Method, MediaTypes) :-
         Page
       )
   ;   ground(N)
-  ->  pagination_bulk(
+  ->  Id = id(_,N),
+      pagination_bulk(
         Id,
-        (
-          Id = id(_,N),
-          hdt_term_id(Hdt, TermRole, Term, Id)
-        ),
+        hdt_term_id(Hdt, TermRole, Term, Id),
         Options,
         Page
       )
   ;   pagination(
         Id,
-        {Hdt,TermRole}/[Id]>>(
+        (
           hdt_term(Hdt, TermRole, Term),
           hdt_term_id(Hdt, TermRole, Term, Id)
         ),
@@ -931,7 +929,7 @@ triple_method(Request, Method, MediaTypes) :-
   ->  RandomOptions = Options.put(_{single_page: true}),
       pagination(
         rdf(S,P,O),
-        {Hdt,S,P,O}>>(
+        (
           repeat,
           hdt_triple_random(Hdt, S, P, O)
         ),
