@@ -395,36 +395,45 @@ home_media_type(Page, media(text/html,_)) :-
 
 graphs_table(Gs) -->
   table(
-    \table_header_row(["Graph","Triples","Terms","Modified","Source"]),
+    \table_header_row(["Graph","Triples","Terms","Modified"]),
     \html_maplist(graph_row, Gs)
   ).
 
 graph_row(G) -->
   {
     hdt_graph(G, Hdt),
-    rdf_http_query([g(G)], Query),
-    % name
-    http_link_to_id(home_handler, Query, Uri),
-    % number of triples
-    http_link_to_id(triple_handler, Query, TriplesUri),
-    hdt_triple_count(Hdt, _, _, _, Triples),
-    % number of terms
-    http_link_to_id(term_handler, Query, TermsUri),
-    hdt_term_count(Hdt, term, Terms),
-    % TBD: modified
-    once(hdt:hdt_triple_(Hdt, header, 0, _, '<http://purl.org/dc/terms/issued>', Modified)),
-    % TBD: source
-    once(hdt:hdt_triple_(Hdt, header, 0, Source, _, _))
+    rdf_http_query([g(G)], Query)
   },
   html(
     tr([
-      td(a(href=Uri,code(G))),
-      td(a(href=TriplesUri,\html_thousands(Triples))),
-      td(a(href=TermsUri,\html_thousands(Terms))),
-      td(Modified),
-      td(Source)
+      \graph_name(G, Query),
+      \number_of_triples(Hdt, Query),
+      \number_of_terms(Hdt, Query),
+      \last_modified_date(Hdt)
     ])
   ).
+
+graph_name(G, Query) -->
+  {http_link_to_id(home_handler, Query, Uri)},
+  html(td(a(href=Uri,code(G)))).
+
+number_of_triples(Hdt, Query) -->
+  {
+    hdt_triple_count(Hdt, _, _, _, N),
+    http_link_to_id(triple_handler, Query, Uri)
+  },
+  html(td(a(href=Uri,\html_thousands(N)))).
+
+number_of_terms(Hdt, Query) -->
+  {
+    hdt_term_count(Hdt, term, N),
+    http_link_to_id(term_handler, Query, Uri)
+  },
+  html(td(a(href=Uri,\html_thousands(N)))).
+
+last_modified_date(Hdt) -->
+  {once(hdt:hdt_triple_(Hdt, header, 0, _, '<http://purl.org/dc/terms/issued>', LMod))},
+  html(td(LMod)).
 
 
 
