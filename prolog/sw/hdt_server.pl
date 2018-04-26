@@ -31,7 +31,7 @@
 :- use_module(library(http/rdf_http)).
 :- use_module(library(media_type)).
 :- use_module(library(pagination)).
-:- use_module(library(sw/graphql_http)).
+%:- use_module(library(sw/graphql_http)).
 :- use_module(library(sw/hdt_db)).
 :- use_module(library(sw/hdt_graph)).
 :- use_module(library(sw/rdf_export)).
