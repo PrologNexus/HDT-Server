@@ -410,7 +410,7 @@ graph_row(G) -->
     hdt_triple_count(Hdt, _, _, _, Triples),
     % number of terms
     http_link_to_id(term_handler, Query, TermsUri),
-    hdt_term_count(Hdt, terms, Terms),
+    hdt_term_count(Hdt, term, Terms),
     % TBD: modified
     once(hdt:hdt_triple_(Hdt, header, 0, _, '<http://purl.org/dc/terms/issued>', Modified)),
     % TBD: source
