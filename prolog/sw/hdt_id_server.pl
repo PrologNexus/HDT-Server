@@ -361,8 +361,8 @@ html_triple_id_table(Uri, G, Triples) -->
   {uri_decode(Uri, DecodeUri)},
   html([
     a(href=DecodeUri, "[decode]"),
-    \table(
-      \table_header_row(["Subject","Predicate","Object"]),
+    \html_table(
+      \html_table_header_row(["Subject","Predicate","Object"]),
       \html_maplist(html_triple_id_row(Uri, G), Triples)
     )
   ]).

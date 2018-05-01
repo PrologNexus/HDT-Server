@@ -259,8 +259,8 @@ graph_media_type(G, media(text/html,_)) :-
     page(_,["Graph"],G),
     [],
     [
-      \table(
-        \table_header_row(["Property","Value"]),
+      \html_table(
+        \html_table_header_row(["Property","Value"]),
         \graph_rows(G)
       )
     ]
@@ -310,12 +310,12 @@ home_media_type(Page, media(text/html,_)) :-
   html_page(
     page(_,["Graph","Overview"],_),
     [],
-    [\html_pagination_result(Page, graphs_table)]
+    [\html_pagination_result(Page, html_graphs_table)]
   ).
 
-graphs_table(Gs) -->
-  table(
-    \table_header_row(["Graph","Triples","Terms","Modified"]),
+html_graphs_table(Gs) -->
+  html_table(
+    \html_table_header_row(["Graph","Triples","Terms","Modified"]),
     \html_maplist(graph_row, Gs)
   ).
 
