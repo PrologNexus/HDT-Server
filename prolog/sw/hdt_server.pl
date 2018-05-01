@@ -221,7 +221,8 @@ http:params(triple_handler, [g,graph,o,object,page,page_size,p,predicate,s,subje
 http:params(triple_count_handler, [g,graph,o,object,p,predicate,s,subject]).
 
 :- set_setting(http:products, ["HDT-Server"-"v0.0.7"]).
-:- set_setting(pagination:default_page_size, 50).
+:- set_setting(pagination:default_page_size, 100).
+:- set_setting(pagination:maximum_page_size, 10 000).
 
 
 
