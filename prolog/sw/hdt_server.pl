@@ -491,14 +491,15 @@ term_method(Request, TermRole, Method, MediaTypes) :-
   ;   true
   ),
   http_parameter_conflict(prefix(Prefix), term(Term)),
-  rdf_http_query([g(G)], Query),
+  rdf_http_query([g(G)], Query1),
+  (ground(Prefix) -> Query2 = [prefix(Prefix)|Query1] ; Query2 = Query1),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
   Options = _{
     graph: G,
     page_number: PageNumber,
     page_size: PageSize,
-    query: Query,
+    query: Query2,
     uri: Uri
   },
   hdt_graph_(G, Hdt),
