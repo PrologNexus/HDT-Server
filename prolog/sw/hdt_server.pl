@@ -11,7 +11,7 @@
 :- use_module(library(http/http_dispatch)).
 :- use_module(library(http/http_path)).
 :- use_module(library(semweb/rdf_db), [
-     rdf_save/1,
+     rdf_save/2,
      rdf_transaction/1
    ]).
 :- use_module(library(semweb/turtle)).
@@ -707,27 +707,24 @@ triple_media_type(G, Page, media(application/trig,_)) :-
   format(current_output, " {\n", []),
   maplist(rdf_write_triple(current_output), Page.results),
   format(current_output, "}\n", []).
-% /triple: GET,HEAD: application/rdf+xml, text/turtle
-triple_media_type(_, Page, MediaType) :-
-  rdf_media_type_(MediaType),
-  atom_phrase(media_type(MediaType), Atom),
-  format("Content-Type: ~a\n\n", [Atom]),
-  rdf_transaction((
-    rdf_retractall_triples(_, _, _, _),
-    maplist(rdf_assert_triple, Page.results),
-    uuid(File),
-    (   MediaType = media(application/'rdf+xml',_)
-    ->  rdf_save(File)
-    ;   MediaType = media(text/turtle,_)
-    ->  rdf_save_canonical_turtle(File, [])
-    ),
-    setup_call_cleanup(
-      open(File, read, In),
-      copy_stream_data(In, current_output),
-      close(In)
-    ),
-    delete_file(File)
-  )).
+% /triple: GET,HEAD: application/rdf+xml
+triple_media_type(_, Page, media(application/'rdf+xml',_)) :-
+  uuid(UUID),
+  format("Content-Type: application/rdf+xml; charset=utf-8\n\n"),
+  rdf_transaction(
+    call_cleanup(
+      (
+        maplist(rdf_assert_triple_(UUID), Page.results),
+        rdf_save(UUID, [graph(UUID)]),
+        setup_call_cleanup(
+          open(UUID, read, In),
+          copy_stream_data(In, current_output),
+          close(In)
+        )
+      ),
+      delete_file(UUID)
+    )
+  ).
 % /triple: GET,HEAD: text/html
 triple_media_type(G, Page, media(text/html,_)) :-
   http_pagination_header(Page),
@@ -746,9 +743,27 @@ triple_media_type(G, Page, media(text/html,_)) :-
       )
     ]
   ).
+% /triple: GET,HEAD: text/turtle
+triple_media_type(_, Page, media(text/turtle,_)) :-
+  uuid(UUID),
+  format("Content-Type: text/turtle\n\n"),
+  rdf_transaction(
+    call_cleanup(
+      (
+        maplist(rdf_assert_triple_(UUID), Page.results),
+        rdf_save_canonical_turtle(UUID, [graph(UUID)]),
+        setup_call_cleanup(
+          open(UUID, read, In),
+          copy_stream_data(In, current_output),
+          close(In)
+        )
+      ),
+      delete_file(UUID)
+    )
+  ).
 
-rdf_media_type_(media(application/'rdf+xml',_)).
-rdf_media_type_(media(text/turtle,_)).
+rdf_assert_triple_(UUID, rdf(S,P,O)) :-
+  rdf_assert_triple(S, P, O, UUID).
 
 
 
