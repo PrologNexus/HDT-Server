@@ -802,7 +802,8 @@ hdt_graph_(G, _) :-
 % HTML STYLE %
 
 html:page_exception(Status, Msg) :-
-  html_page(
+  % TBD: Why is the module prefix needed here?
+  html_ext:html_page(
     page(_,["HTTP error",Status],_),
     [],
     [
