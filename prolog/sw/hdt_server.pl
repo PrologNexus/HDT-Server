@@ -16,6 +16,7 @@
    ]).
 :- use_module(library(semweb/turtle)).
 :- use_module(library(settings)).
+:- use_module(library(solution_sequences)).
 :- use_module(library(yall)).
 
 :- use_module(library(atom_ext)).
