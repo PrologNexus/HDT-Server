@@ -6,9 +6,10 @@
 @version 2017-2018
 */
 
-:- use_module(library(aggregate)).
 :- use_module(library(apply)).
+:- use_module(library(filesex)).
 :- use_module(library(http/http_dispatch)).
+:- use_module(library(http/http_log)).
 :- use_module(library(http/http_path)).
 :- use_module(library(semweb/rdf_db), [
      rdf_save/2,
@@ -17,10 +18,11 @@
 :- use_module(library(semweb/turtle)).
 :- use_module(library(settings)).
 :- use_module(library(solution_sequences)).
+:- use_module(library(uuid)).
 :- use_module(library(yall)).
 
 :- use_module(library(atom_ext)).
-:- use_module(library(dcg)).
+:- use_module(library(conf_ext)).
 :- use_module(library(dict)).
 :- use_module(library(html/html_doc)).
 :- use_module(library(html/html_ext)).
@@ -30,15 +32,12 @@
 :- use_module(library(http/http_resource), []).
 :- use_module(library(http/http_server)).
 :- use_module(library(http/rdf_http)).
-:- use_module(library(media_type)).
 :- use_module(library(pagination)).
 :- use_module(library(sw/hdt_db)).
 :- use_module(library(sw/hdt_graph)).
 :- use_module(library(sw/rdf_export)).
 :- use_module(library(sw/rdf_mem)).
 :- use_module(library(sw/rdf_prefix)).
-:- use_module(library(sw/rdf_term)).
-:- use_module(library(uri_ext)).
 
 :- dynamic
     html:handler_description/2,
@@ -47,29 +46,49 @@
     http:media_types/2,
     http:params/2.
 
-:- http_handler(/, home_handler, [methods([get,head,options])]).
-:- http_handler(root(doc), doc_handler, [methods([get,head,options])]).
-:- http_handler(root(node), node_handler, [methods([get,head,options])]).
-:- http_handler(root(node/count), node_count_handler, [methods([get,head,options])]).
-:- http_handler(root(object), object_handler, [methods([get,head,options])]).
-:- http_handler(root(object/count), object_count_handler, [methods([get,head,options])]).
-:- http_handler(root(predicate), predicate_handler, [methods([get,head,options])]).
-:- http_handler(root(predicate/count), predicate_count_handler, [methods([get,head,options])]).
-:- http_handler(root(shared), shared_handler, [methods([get,head,options])]).
-:- http_handler(root(shared/count), shared_count_handler, [methods([get,head,options])]).
-:- http_handler(root(sink), sink_handler, [methods([get,head,options])]).
-:- http_handler(root(sink/count), sink_count_handler, [methods([get,head,options])]).
-:- http_handler(root(source), source_handler, [methods([get,head,options])]).
-:- http_handler(root(source/count), source_count_handler, [methods([get,head,options])]).
-:- http_handler(root(subject), subject_handler, [methods([get,head,options])]).
-:- http_handler(root(subject/count), subject_count_handler, [methods([get,head,options])]).
-:- http_handler(root(term), term_handler, [methods([get,head,options])]).
-:- http_handler(root(term/count), term_count_handler, [methods([get,head,options])]).
-:- http_handler(root(triple), triple_handler, [methods([get,head,options])]).
-:- http_handler(root(triple/count), triple_count_handler, [methods([get,head,options])]).
+:- http_handler(/, home_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(doc), doc_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(node), node_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(node/count), node_count_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(object), object_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(object/count), object_count_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(predicate), predicate_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(predicate/count), predicate_count_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(shared), shared_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(shared/count), shared_count_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(sink), sink_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(sink/count), sink_count_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(source), source_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(source/count), source_count_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(subject), subject_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(subject/count), subject_count_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(term), term_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(term/count), term_count_handler,
+                [methods([get,head,options])]).
+:- http_handler(root(triple), triple_handler,
+                [methods([get,head,options]),spawn(triple)]).
+:- http_handler(root(triple/count), triple_count_handler,
+                [methods([get,head,options])]).
 
 :- initialization
-   rdf_assert_prefixes.
+   init_hdt_server.
 
 :- multifile
     html:handler_description/2,
@@ -221,9 +240,11 @@ http:params(term_count_handler, [g,graph]).
 http:params(triple_handler, [g,graph,o,object,page,page_size,p,predicate,s,subject]).
 http:params(triple_count_handler, [g,graph,o,object,p,predicate,s,subject]).
 
-:- set_setting(http:products, ["HDT-Server"-"v0.0.7"]).
+:- set_setting(http:products, ["HDT-Server"-"v0.0.8"]).
 :- set_setting(pagination:default_page_size, 100).
-:- set_setting(pagination:maximum_page_size, 10 000).
+:- set_setting(pagination:maximum_page_size, 1 000).
+
+:- setting(tmp_directory, any, _, "").
 
 
 
@@ -710,20 +731,22 @@ triple_media_type(G, Page, media(application/trig,_)) :-
   format(current_output, "}\n", []).
 % /triple: GET,HEAD: application/rdf+xml
 triple_media_type(_, Page, media(application/'rdf+xml',_)) :-
-  uuid(UUID),
+  setting(tmp_directory, Dir),
+  uuid(Local),
+  directory_file_path(Dir, Local, File),
   format("Content-Type: application/rdf+xml; charset=utf-8\n\n"),
   rdf_transaction(
     call_cleanup(
       (
-        maplist(rdf_assert_triple_(UUID), Page.results),
-        rdf_save(UUID, [graph(UUID)]),
+        maplist(rdf_assert_triple_(Local), Page.results),
+        rdf_save(File, [graph(Local)]),
         setup_call_cleanup(
-          open(UUID, read, In),
+          open(File, read, In),
           copy_stream_data(In, current_output),
           close(In)
         )
       ),
-      delete_file(UUID)
+      delete_file(File)
     )
   ).
 % /triple: GET,HEAD: text/html
@@ -746,25 +769,27 @@ triple_media_type(G, Page, media(text/html,_)) :-
   ).
 % /triple: GET,HEAD: text/turtle
 triple_media_type(_, Page, media(text/turtle,_)) :-
-  uuid(UUID),
+  setting(tmp_directory, Dir),
+  uuid(Local),
+  directory_file_path(Dir, Local, File),
   format("Content-Type: text/turtle\n\n"),
   rdf_transaction(
     call_cleanup(
       (
-        maplist(rdf_assert_triple_(UUID), Page.results),
-        rdf_save_canonical_turtle(UUID, [graph(UUID)]),
+        maplist(rdf_assert_triple_(Local), Page.results),
+        rdf_save_canonical_turtle(File, [graph(Local)]),
         setup_call_cleanup(
-          open(UUID, read, In),
+          open(File, read, In),
           copy_stream_data(In, current_output),
           close(In)
         )
       ),
-      delete_file(UUID)
+      delete_file(File)
     )
   ).
 
-rdf_assert_triple_(UUID, rdf(S,P,O)) :-
-  rdf_assert_triple(S, P, O, UUID).
+rdf_assert_triple_(G, rdf(S,P,O)) :-
+  rdf_assert_triple(S, P, O, G).
 
 
 
@@ -871,3 +896,16 @@ html_graph(G) -->
     http_link_to_id(home_handler, Query, Uri)
   },
   html(["Querying graph: ",a(href=Uri,code(G))]).
+
+
+
+
+
+% INITIALIZATION %
+
+init_hdt_server :-
+  rdf_assert_prefixes,
+  conf_json(Conf),
+  set_setting(tmp_directory, Conf.'tmp-directory'),
+  directory_file_path(Conf.'tmp-directory', 'hdt_server.log', File),
+  set_setting(http:logfile, File).
