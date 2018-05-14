@@ -83,7 +83,7 @@
 :- http_handler(root(term/count), term_count_handler,
                 [methods([get,head,options])]).
 :- http_handler(root(triple), triple_handler,
-                [methods([get,head,options]),spawn(triple)]).
+                [methods([get,head,options])]).
 :- http_handler(root(triple/count), triple_count_handler,
                 [methods([get,head,options])]).
 
