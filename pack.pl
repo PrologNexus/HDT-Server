@@ -7,5 +7,5 @@ keywords([
   'Semantic Web'
 ]).
 name('HDT-Server').
-title('').
-version('0.0.0')
+title('HDT-Server').
+version('0.0.0').
