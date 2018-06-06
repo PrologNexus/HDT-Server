@@ -33,8 +33,8 @@
 :- use_module(library(http/http_server)).
 :- use_module(library(http/rdf_http)).
 :- use_module(library(pagination)).
-:- use_module(library(sw/hdt_db)).
-:- use_module(library(sw/hdt_graph)).
+:- use_module(library(sw/hdt_api)).
+:- use_module(library(sw/hdt_dataset)).
 :- use_module(library(sw/rdf_export)).
 :- use_module(library(sw/rdf_mem)).
 :- use_module(library(sw/rdf_prefix)).
@@ -830,11 +830,11 @@ triple_count_media_type(G, Count, media(text/html,_)) :-
 
 hdt_graph_(G, Hdt) :-
   var(G), !,
-  hdt_default_graph(G, Hdt).
-hdt_graph_(G, Hdt) :-
+  hdt_dataset(dataset(DGs,_)),
+  member(G, DGs),
   hdt_graph(G, Hdt).
-hdt_graph_(G, _) :-
-  existence_error(hdt_graph, G).
+hdt_graph_(G, Hdt) :-
+  (hdt_graph(G, Hdt) -> true ; existence_error(hdt_graph, G)).
 
 
 

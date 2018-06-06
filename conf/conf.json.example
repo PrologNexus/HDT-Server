@@ -1,9 +1,11 @@
 {
   "hdt": {
-    "default": "NAME",
+    "dataset": {
+      "default_graphs": ["IRI"],
+      "named_graphs": ["IRI"]
+    },
     "graphs": [
       {
-        "context": "FILE",
         "file": "FILE",
         "name": "IRI"
       }
