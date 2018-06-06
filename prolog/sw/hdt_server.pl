@@ -572,41 +572,45 @@ html_term_table(Hdt, G, Terms) -->
   html(ul(\html_maplist(html_term_row(G, Hdt), Terms))).
 
 html_term_row(G, Hdt, Term) -->
-  {
-    rdf_http_query([g(G),s(Term)], SQuery),
-    rdf_http_query([g(G),p(Term)], PQuery),
-    rdf_http_query([g(G),o(Term)], OQuery)
-  },
   html(
     li([
       \rdf_html_term(Term, _{format: ntuples}),
       " 〈",
-      \html_term_subject_link(Hdt, Term, SQuery),
+      \html_term_subject_link(Hdt, Term, G),
       ", ",
-      \html_term_predicate_link(Hdt, Term, PQuery),
+      \html_term_predicate_link(Hdt, Term, G),
       ", ",
-      \html_term_object_link(Hdt, Term, OQuery),
+      \html_term_object_link(Hdt, Term, G),
       "〉"
     ])
   ).
 
-html_term_subject_link(Hdt, S, Query) -->
-  {hdt_triple(Hdt, S, _, _)}, !,
-  {http_link_to_id(triple_handler, Query, Uri)},
+html_term_subject_link(Hdt, S, G) -->
+  {
+    hdt_triple(Hdt, S, _, _), !,
+    rdf_http_query([g(G),s(S)], Query),
+    http_link_to_id(triple_handler, Query, Uri)
+  },
   html(a(href=Uri, "s")).
 html_term_subject_link(_, _, _) -->
   html("s").
 
-html_term_predicate_link(Hdt, P, Query) -->
-  {hdt_triple(Hdt, _, P, _)}, !,
-  {http_link_to_id(triple_handler, Query, Uri)},
+html_term_predicate_link(Hdt, P, G) -->
+  {
+    hdt_triple(Hdt, _, P, _), !,
+    rdf_http_query([g(G),p(P)], Query),
+    http_link_to_id(triple_handler, Query, Uri)
+  },
   html(a(href=Uri, "p")).
 html_term_predicate_link(_, _, _) -->
   html("p").
 
-html_term_object_link(Hdt, O, Query) -->
-  {hdt_triple(Hdt, _, _, O)}, !,
-  {http_link_to_id(triple_handler, Query, Uri)},
+html_term_object_link(Hdt, O, G) -->
+  {
+    hdt_triple(Hdt, _, _, O), !,
+    rdf_http_query([g(G),o(O)], Query),
+    http_link_to_id(triple_handler, Query, Uri)
+  },
   html(a(href=Uri, "o")).
 html_term_object_link(_, _, _) -->
   html("o").
@@ -758,12 +762,7 @@ triple_media_type(G, Page, media(text/html,_)) :-
     [
       \html_pagination_result(
         Page,
-        [Triples]>>rdf_html_triple_table(
-          Page.uri,
-          G,
-          Triples,
-          _{format: ntuples}
-        )
+        [Triples]>>rdf_html_triple_table(Page.uri, G, Triples, _{format: ntuples})
       )
     ]
   ).
