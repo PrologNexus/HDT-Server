@@ -261,8 +261,9 @@ home_method(Request, Method, MediaTypes) :-
   http_is_get(Method),
   rest_parameters(
     Request,
-    [g(G),graph(G),page(PageNumber),page_size(PageSize)]
+    [g(G1),graph(G2),page(PageNumber),page_size(PageSize)]
   ),
+  http_parameter_alternatives([g(G1),graph(G2)], G),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
   (   var(G)
@@ -490,7 +491,7 @@ term_method(Request, TermRole, Method, MediaTypes) :-
   rest_parameters(
     Request,
     [
-      g(G), graph(G),
+      g(G1), graph(G2),
       page(PageNumber),
       page_size(PageSize),
       prefix(Prefix),
@@ -498,6 +499,7 @@ term_method(Request, TermRole, Method, MediaTypes) :-
       term(Term)
     ]
   ),
+  http_parameter_alternatives([g(G1),graph(G2)], G),
   (   PageNumber > 1,
       Random == true
   ->  throw(error(conflicting_http_parameters([page_number,random])))
@@ -627,7 +629,8 @@ term_count_handler_(Request, TermRole) :-
 % /term/count: GET,HEAD
 term_count_method(Request, TermRole, Method, MediaTypes) :-
   http_is_get(Method),
-  rest_parameters(Request, [g(G),graph(G)]),
+  rest_parameters(Request, [g(G1),graph(G2)]),
+  http_parameter_alternatives([g(G1),graph(G2)], G),
   hdt_graph_(G, Hdt),
   hdt_term_count(Hdt, TermRole, Count),
   rest_media_type(MediaTypes, term_count_media_type(G, TermRole, Count)).
@@ -656,15 +659,19 @@ triple_method(Request, Method, MediaTypes) :-
   rest_parameters(
     Request,
     [
-      g(G), graph(G),
-      o(O), object(O),
+      g(G1), graph(G2),
+      o(O1), object(O2),
       page(PageNumber),
       page_size(PageSize),
-      p(P), predicate(P),
+      p(P1), predicate(P2),
       random(Random),
-      s(S), subject(S)
+      s(S1), subject(S2)
     ]
   ),
+  http_parameter_alternatives([g(G1),graph(G2)], G),
+  http_parameter_alternatives([o(O1),object(O2)], O),
+  http_parameter_alternatives([p(P1),predicate(P2)], P),
+  http_parameter_alternatives([s(S1),subject(S2)], S),
   (   PageNumber > 1,
       Random == true
   ->  throw(error(conflicting_http_parameters([page_number,random])))
@@ -802,12 +809,16 @@ triple_count_method(Request, Method, MediaTypes) :-
   rest_parameters(
     Request,
     [
-      g(G), graph(G),
-      s(S), subject(S),
-      p(P), predicate(P),
-      o(O), object(O)
+      g(G1), graph(G2),
+      s(S1), subject(S2),
+      p(P1), predicate(P2),
+      o(O1), object(O2)
     ]
   ),
+  http_parameter_alternatives([g(G1),graph(G2)], G),
+  http_parameter_alternatives([o(O1),object(O2)], O),
+  http_parameter_alternatives([p(P1),predicate(P2)], P),
+  http_parameter_alternatives([s(S1),subject(S2)], S),
   hdt_graph_(G, Hdt),
   hdt_triple_count(Hdt, S, P, O, Count),
   rest_media_type(MediaTypes, triple_count_media_type(G, Count)).
