@@ -698,7 +698,9 @@ triple_method(Request, Method, MediaTypes) :-
         RandomOptions,
         Page
       )
-  ;   Offset is (PageNumber - 1) * PageSize,
+  ;   % We do not use pagination/5 because we must use Offset in
+      % Goal_0.
+      Offset is (PageNumber - 1) * PageSize,
       findall(
         rdf(S,P,O),
         limit(PageSize, hdt_triple(Hdt, Offset, S, P, O)),
