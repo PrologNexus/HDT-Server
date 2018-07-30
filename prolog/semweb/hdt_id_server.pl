@@ -28,19 +28,19 @@ http:convert_parameter(hdt_object, Atom, O) :-
   (   atom_number(Atom, N)
   ->  must_be(positive_integer, N),
       O = id(object,N)
-  ;   rdf_atom_to_term(Atom, O)
+  ;   rdf_atom_term(Atom, O)
   ).
 http:convert_parameter(hdt_predicate, Atom, P) :-
   (   atom_number(Atom, N)
   ->  must_be(positive_integer, N),
       P = id(predicate,N)
-  ;   rdf_atom_to_term(Atom, P)
+  ;   rdf_atom_term(Atom, P)
   ).
 http:convert_parameter(hdt_subject, Atom, S) :-
   (   atom_number(Atom, N)
   ->  must_be(positive_integer, N),
       S = id(subject,N)
-  ;   rdf_atom_to_term(Atom, S)
+  ;   rdf_atom_term(Atom, S)
   ).
 
 html:menu_item(term_id, "Term IDs").
@@ -167,7 +167,7 @@ term_id_method(Request, TermRole, Method, MediaTypes) :-
     page_size: PageSize,
     uri: Uri
   },
-  hdt_graph_(G, Hdt),
+  hdt_graph_(Hdt, G),
   (   Random == true
   ->  RandomOptions = Options.put(_{single_page: true}),
       pagination(
@@ -300,7 +300,7 @@ triple_id_method(Request, Method, MediaTypes) :-
   ->  throw(error(conflicting_http_parameters([page_number,random])))
   ;   true
   ),
-  hdt_graph_(G, Hdt),
+  hdt_graph_(Hdt, G),
   rdf_http_query([s(S),p(P),o(O),g(G)], Query),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),

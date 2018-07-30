@@ -11,10 +11,6 @@
 :- use_module(library(http/http_dispatch)).
 :- use_module(library(http/http_log)).
 :- use_module(library(http/http_path)).
-:- use_module(library(semweb/rdf_db), [
-     rdf_save/2,
-     rdf_transaction/1
-   ]).
 :- use_module(library(semweb/turtle)).
 :- use_module(library(settings)).
 :- use_module(library(solution_sequences)).
@@ -33,11 +29,11 @@
 :- use_module(library(http/http_server)).
 :- use_module(library(http/rdf_http)).
 :- use_module(library(pagination)).
-:- use_module(library(sw/hdt_api)).
-:- use_module(library(sw/hdt_dataset)).
-:- use_module(library(sw/rdf_export)).
-:- use_module(library(sw/rdf_mem)).
-:- use_module(library(sw/rdf_prefix)).
+:- use_module(library(semweb/hdt_api)).
+:- use_module(library(semweb/hdt_dataset)).
+:- use_module(library(semweb/rdf_export)).
+:- use_module(library(semweb/rdf_mem)).
+:- use_module(library(semweb/rdf_prefix)).
 
 :- dynamic
     html:handler_description/2,
@@ -269,7 +265,7 @@ home_method(Request, Method, MediaTypes) :-
   (   var(G)
   ->  pagination_bulk(
         G,
-        hdt_graph(G),
+        hdt_graph(_, G),
         _{page_number: PageNumber, page_size: PageSize, uri: Uri},
         Page
       ),
@@ -292,7 +288,7 @@ graph_media_type(G, media(text/html,_)) :-
 
 graph_rows(G) -->
   {
-    hdt_graph(G, Hdt),
+    hdt_graph(Hdt, G),
     rdf_http_query([g(G)], Query),
     http_link_to_id(node_handler, Query, NodesUri),
     hdt_term_count(Hdt, node, Nodes),
@@ -345,7 +341,7 @@ html_graphs_table(Gs) -->
 
 graph_row(G) -->
   {
-    hdt_graph(G, Hdt),
+    hdt_graph(Hdt, G),
     rdf_http_query([g(G)], Query)
   },
   html(
@@ -526,7 +522,7 @@ term_method(Request, TermRole, Method, MediaTypes) :-
     query: Query2,
     uri: Uri
   },
-  hdt_graph_(G, Hdt),
+  hdt_graph_(Hdt, G),
   (   Random == true
   ->  RandomOptions = Options.put(_{single_page: true}),
       pagination(
@@ -631,7 +627,7 @@ term_count_method(Request, TermRole, Method, MediaTypes) :-
   http_is_get(Method),
   rest_parameters(Request, [g(G1),graph(G2)]),
   http_parameter_alternatives([g(G1),graph(G2)], G),
-  hdt_graph_(G, Hdt),
+  hdt_graph_(Hdt, G),
   hdt_term_count(Hdt, TermRole, Count),
   rest_media_type(MediaTypes, term_count_media_type(G, TermRole, Count)).
 
@@ -677,7 +673,7 @@ triple_method(Request, Method, MediaTypes) :-
   ->  throw(error(conflicting_http_parameters([page_number,random])))
   ;   true
   ),
-  hdt_graph_(G, Hdt),
+  hdt_graph_(Hdt, G),
   rdf_http_query([s(S),p(P),o(O),g(G)], Query),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
@@ -738,7 +734,7 @@ triple_media_type(G, Page, media(application/trig,_)) :-
   format("Content-Type: application/trig\n"),
   http_pagination_header(Page),
   nl,
-  rdf_write_name(current_output, G),
+  rdf_write_iri(current_output, G),
   format(current_output, " {\n", []),
   maplist(rdf_write_triple(current_output), Page.results),
   format(current_output, "}\n", []).
@@ -752,7 +748,7 @@ triple_media_type(_, Page, media(application/'rdf+xml',_)) :-
     call_cleanup(
       (
         maplist(rdf_assert_triple_(Local), Page.results),
-        rdf_save(File, [graph(Local)]),
+        rdf_save_file(File, [graph(Local),media_type(media(application/'rdf+xml'))]),
         setup_call_cleanup(
           open(File, read, In),
           copy_stream_data(In, current_output),
@@ -785,7 +781,7 @@ triple_media_type(_, Page, media(text/turtle,_)) :-
     call_cleanup(
       (
         maplist(rdf_assert_triple_(Local), Page.results),
-        rdf_save_canonical_turtle(File, [graph(Local)]),
+        rdf_save_file(File, [graph(Local),media_type(media(text/turtle,[]))]),
         setup_call_cleanup(
           open(File, read, In),
           copy_stream_data(In, current_output),
@@ -821,7 +817,7 @@ triple_count_method(Request, Method, MediaTypes) :-
   http_parameter_alternatives([o(O1),object(O2)], O),
   http_parameter_alternatives([p(P1),predicate(P2)], P),
   http_parameter_alternatives([s(S1),subject(S2)], S),
-  hdt_graph_(G, Hdt),
+  hdt_graph_(Hdt, G),
   hdt_triple_count(Hdt, S, P, O, Count),
   rest_media_type(MediaTypes, triple_count_media_type(G, Count)).
 
@@ -838,15 +834,15 @@ triple_count_media_type(G, Count, media(text/html,_)) :-
 
 % GENERICS %
 
-%! hdt_graph_(?G:atom, -Hdt:blob) is det.
+%! hdt_graph_(-Hdt:blob, ?G:atom) is det.
 
-hdt_graph_(G, Hdt) :-
+hdt_graph_(Hdt, G) :-
   var(G), !,
   hdt_dataset(dataset(DGs,_)),
   member(G, DGs),
-  hdt_graph(G, Hdt).
-hdt_graph_(G, Hdt) :-
-  (hdt_graph(G, Hdt) -> true ; existence_error(hdt_graph, G)).
+  hdt_graph(Hdt, G).
+hdt_graph_(Hdt, G) :-
+  (hdt_graph(Hdt, G) -> true ; existence_error(hdt_graph, G)).
 
 
 
@@ -916,7 +912,7 @@ html_graph(G) -->
 % INITIALIZATION %
 
 init_hdt_server :-
-  rdf_assert_prefixes,
+  rdf_register_prefixes,
   conf_json(Conf),
   set_setting(tmp_directory, Conf.'tmp-directory'),
   directory_file_path(Conf.'tmp-directory', 'hdt_server.log', File),
