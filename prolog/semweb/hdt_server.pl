@@ -498,16 +498,16 @@ term_method(Request, TermRole, Method, MediaTypes) :-
   http_parameter_alternatives([g(G1),graph(G2)], G),
   (   PageNumber > 1,
       Random == true
-  ->  throw(error(conflicting_http_parameters([page_number,random])))
+  ->  conflicting_http_parameters([page_number,random])
   ;   PageNumber > 1,
       ground(Term)
-  ->  throw(error(conflicting_http_parameters([page_number,term])))
+  ->  conflicting_http_parameters([page_number,term])
   ;   ground(Prefix),
       Random == true
-  ->  throw(error(conflicting_http_parameters([prefix,random])))
+  ->  conflicting_http_parameters([prefix,random])
   ;   Random == true,
       ground(Term)
-  ->  throw(error(conflicting_http_parameters([random,term])))
+  ->  conflicting_http_parameters([random,term])
   ;   true
   ),
   http_parameter_conflict(prefix(Prefix), term(Term)),
@@ -670,7 +670,7 @@ triple_method(Request, Method, MediaTypes) :-
   http_parameter_alternatives([s(S1),subject(S2)], S),
   (   PageNumber > 1,
       Random == true
-  ->  throw(error(conflicting_http_parameters([page_number,random])))
+  ->  conflicting_http_parameters([page_number,random])
   ;   true
   ),
   hdt_graph_(Hdt, G),

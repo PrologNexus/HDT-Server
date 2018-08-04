@@ -145,16 +145,16 @@ term_id_method(Request, TermRole, Method, MediaTypes) :-
   ),
   (   PageNumber > 1,
       Random == true
-  ->  throw(error(conflicting_http_parameters([page_number,random])))
+  ->  conflicting_http_parameters([page_number,random])
   ;   PageNumber > 1,
       ground(Term)
-  ->  throw(error(conflicting_http_parameters([page_number,term])))
+  ->  conflicting_http_parameters([page_number,term])
   ;   ground(Prefix),
       Random == true
-  ->  throw(error(conflicting_http_parameters([prefix,random])))
+  ->  conflicting_http_parameters([prefix,random])
   ;   Random == true,
       ground(Term)
-  ->  throw(error(conflicting_http_parameters([random,term])))
+  ->  conflicting_http_parameters([random,term])
   ;   true
   ),
   http_parameter_conflict(id(N), term(Term)),
@@ -297,7 +297,7 @@ triple_id_method(Request, Method, MediaTypes) :-
   ),
   (   PageNumber > 1,
       Random == true
-  ->  throw(error(conflicting_http_parameters([page_number,random])))
+  ->  conflicting_http_parameters([page_number,random])
   ;   true
   ),
   hdt_graph_(Hdt, G),
