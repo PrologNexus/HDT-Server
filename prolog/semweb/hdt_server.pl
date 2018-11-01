@@ -838,9 +838,7 @@ triple_count_media_type(G, Count, media(text/html,_)) :-
 
 hdt_graph_(Hdt, G) :-
   var(G), !,
-  hdt_dataset(dataset(DGs,_)),
-  member(G, DGs),
-  hdt_graph(Hdt, G).
+  hdt_default(Hdt).
 hdt_graph_(Hdt, G) :-
   (hdt_graph(Hdt, G) -> true ; existence_error(hdt_graph, G)).
 
