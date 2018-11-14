@@ -1,7 +1,0 @@
-{
-  "dependencies": [
-    {"name": "Pro-HDT", "user": "wouterbeek"},
-    {"name": "Pro-RDF-DB", "user": "wouterbeek"}
-  ],
-  "keywords": ["HDT", "Header Dictionary Triples"]
-}
