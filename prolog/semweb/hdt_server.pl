@@ -29,8 +29,8 @@
 :- use_module(library(http/http_server)).
 :- use_module(library(http/rdf_http)).
 :- use_module(library(pagination)).
-:- use_module(library(semweb/hdt_api)).
-:- use_module(library(semweb/hdt_dataset)).
+:- use_module(library(semweb/hdt)).%API
+:- use_module(library(semweb/rdf_api)).
 :- use_module(library(semweb/rdf_export)).
 :- use_module(library(semweb/rdf_mem)).
 :- use_module(library(semweb/rdf_prefix)).
@@ -585,7 +585,7 @@ html_term_row(G, Hdt, Term) -->
 
 html_term_subject_link(Hdt, S, G) -->
   {
-    hdt_triple(Hdt, S, _, _), !,
+    tp(hdt0(Hdt), S, _, _), !,
     rdf_http_query([g(G),s(S)], Query),
     http_link_to_id(triple_handler, Query, Uri)
   },
@@ -595,7 +595,7 @@ html_term_subject_link(_, _, _) -->
 
 html_term_predicate_link(Hdt, P, G) -->
   {
-    hdt_triple(Hdt, _, P, _), !,
+    tp(hdt0(Hdt), _, P, _), !,
     rdf_http_query([g(G),p(P)], Query),
     http_link_to_id(triple_handler, Query, Uri)
   },
@@ -605,7 +605,7 @@ html_term_predicate_link(_, _, _) -->
 
 html_term_object_link(Hdt, O, G) -->
   {
-    hdt_triple(Hdt, _, _, O), !,
+    tp(hdt0(Hdt), _, _, O), !,
     rdf_http_query([g(G),o(O)], Query),
     http_link_to_id(triple_handler, Query, Uri)
   },
@@ -699,7 +699,7 @@ triple_method(Request, Method, MediaTypes) :-
       Offset is (PageNumber - 1) * PageSize,
       findall(
         rdf(S,P,O),
-        limit(PageSize, hdt_triple(Hdt, Offset, S, P, O)),
+        limit(PageSize, tp(hdt0(Hdt), Offset, S, P, O)),
         Results
       ),
       length(Results, NumResults),
@@ -747,7 +747,7 @@ triple_media_type(_, Page, media(application/'rdf+xml',_)) :-
   rdf_transaction(
     call_cleanup(
       (
-        maplist(rdf_assert_triple_(Local), Page.results),
+        maplist(assert_triple(mem(Local)), Page.results),
         rdf_save_file(File, [graph(Local),media_type(media(application/'rdf+xml'))]),
         setup_call_cleanup(
           open(File, read, In),
@@ -780,7 +780,7 @@ triple_media_type(_, Page, media(text/turtle,_)) :-
   rdf_transaction(
     call_cleanup(
       (
-        maplist(rdf_assert_triple_(Local), Page.results),
+        maplist(assert_triple(mem(Local)), Page.results),
         rdf_save_file(File, [graph(Local),media_type(media(text/turtle,[]))]),
         setup_call_cleanup(
           open(File, read, In),
@@ -791,9 +791,6 @@ triple_media_type(_, Page, media(text/turtle,_)) :-
       delete_file(File)
     )
   ).
-
-rdf_assert_triple_(G, rdf(S,P,O)) :-
-  rdf_assert_triple(S, P, O, G).
 
 
 
