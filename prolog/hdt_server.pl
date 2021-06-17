@@ -2,8 +2,6 @@
 
 /** <module> HDT server
 
-@author Wouter Beek
-@version 2017-2018
 */
 
 :- use_module(library(apply)).
@@ -18,22 +16,21 @@
 :- use_module(library(yall)).
 
 :- use_module(library(atom_ext)).
-:- use_module(library(conf_ext)).
+:- use_module(library(conf)).
 :- use_module(library(dict)).
+:- use_module(library(http_pagination)).
+:- use_module(library(pagination)).
+:- use_module(library(rdf_export)).
+:- use_module(library(rdf_prefix)).
+:- use_module(library(rest_server)).
+
 :- use_module(library(html/html_doc)).
 :- use_module(library(html/html_ext)).
 :- use_module(library(html/html_pagination)).
 :- use_module(library(html/rdf_html)).
-:- use_module(library(http/http_pagination)).
-:- use_module(library(http/http_resource), []).
-:- use_module(library(http/http_server)).
-:- use_module(library(http/rdf_http)).
-:- use_module(library(pagination)).
-:- use_module(library(semweb/hdt)).%API
-:- use_module(library(semweb/rdf_api)).
-:- use_module(library(semweb/rdf_export)).
-:- use_module(library(semweb/rdf_mem)).
-:- use_module(library(semweb/rdf_prefix)).
+:- use_module(library(rdf_http)).
+:- use_module(library(rdf_api)).
+:- use_module(library(rdf_mem)).
 
 :- dynamic
     html:handler_description/2,
@@ -266,7 +263,7 @@ home_method(Request, Method, MediaTypes) :-
   ->  pagination_bulk(
         G,
         hdt_graph(_, G),
-        _{page_number: PageNumber, page_size: PageSize, uri: Uri},
+        options{page_number: PageNumber, page_size: PageSize, uri: Uri},
         Page
       ),
       rest_media_type(MediaTypes, home_media_type(Page))
@@ -307,7 +304,7 @@ graph_rows(G) -->
     http_link_to_id(term_handler, Query, TermsUri),
     hdt_term_count(Hdt, term, Terms),
     http_link_to_id(triple_handler, Query, TriplesUri),
-    hdt_triple_count(Hdt, _, _, _, Triples)
+    hdt_tp_count(Hdt, Triples)
   },
   html([
     tr([td("Nodes"),td(a(href=NodesUri,\html_thousands(Nodes)))]),
@@ -359,10 +356,10 @@ graph_name(G, Query) -->
 
 number_of_triples(Hdt, Query) -->
   {
-    hdt_triple_count(Hdt, _, _, _, N),
+    hdt_tp_count(Hdt, Count),
     http_link_to_id(triple_handler, Query, Uri)
   },
-  html(td(a(href=Uri,\html_thousands(N)))).
+  html(td(a(href=Uri,\html_thousands(Count)))).
 
 number_of_terms(Hdt, Query) -->
   {
@@ -515,7 +512,7 @@ term_method(Request, TermRole, Method, MediaTypes) :-
   (ground(Prefix) -> Query2 = [prefix(Prefix)|Query1] ; Query2 = Query1),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  Options = _{
+  Options = options{
     graph: G,
     page_number: PageNumber,
     page_size: PageSize,
@@ -524,7 +521,7 @@ term_method(Request, TermRole, Method, MediaTypes) :-
   },
   hdt_graph_(Hdt, G),
   (   Random == true
-  ->  RandomOptions = Options.put(_{single_page: true}),
+  ->  RandomOptions = Options.put(options{single_page: true}),
       pagination(
         Term,
         (
@@ -542,7 +539,7 @@ term_method(Request, TermRole, Method, MediaTypes) :-
         Page
       )
   ;   ground(Term)
-  ->  Page = Options.put(_{number_of_results: 1, results: [Term]})
+  ->  Page = Options.put(options{number_of_results: 1, results: [Term]})
   ;   pagination(
         Term,
         hdt_term(Hdt, TermRole, Term),
@@ -572,7 +569,7 @@ html_term_table(Hdt, G, Terms) -->
 html_term_row(G, Hdt, Term) -->
   html(
     li([
-      \rdf_html_term(Term, _{format: ntuples}),
+      \rdf_html_term(Term, options{format: ntuples}),
       " 〈",
       \html_term_subject_link(Hdt, Term, G),
       ", ",
@@ -677,19 +674,19 @@ triple_method(Request, Method, MediaTypes) :-
   rdf_http_query([s(S),p(P),o(O),g(G)], Query),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  Options = _{
+  Options = options{
     page_number: PageNumber,
     page_size: PageSize,
     query: Query,
     uri: Uri
   },
   (   Random == true
-  ->  RandomOptions = Options.put(_{single_page: true}),
+  ->  RandomOptions = Options.put(options{single_page: true}),
       pagination(
         rdf(S,P,O),
         (
           repeat,
-          hdt_triple_random(Hdt, S, P, O)
+          hdt_tp_random(Hdt, tp(S,P,O))
         ),
         RandomOptions,
         Page
@@ -703,9 +700,9 @@ triple_method(Request, Method, MediaTypes) :-
         Results
       ),
       length(Results, NumResults),
-      hdt_triple_count(Hdt, S, P, O, TotalNumResults),
+      hdt_tp_count(Hdt, tp(S,P,O), TotalNumResults),
       merge_dicts(
-        _{
+        options{
           number_of_results: NumResults,
           results: Results,
           single_page: false,
@@ -722,7 +719,10 @@ triple_media_type(G, Page, media(application/'n-quads',_)) :-
   format("Content-Type: application/n-quads\n"),
   http_pagination_header(Page),
   nl,
-  maplist({G}/[Triple]>>rdf_write_quad(current_output, Triple, G), Page.results).
+  maplist(
+    {G}/[Triple0]>>rdf_write_quad(current_output, Triple0, G),
+    Page.results
+  ).
 % /triple: GET,HEAD: application/n-triples
 triple_media_type(_, Page, media(application/'n-triples',_)) :-
   format("Content-Type: application/n-triples\n"),
@@ -767,7 +767,13 @@ triple_media_type(G, Page, media(text/html,_)) :-
     [
       \html_pagination_result(
         Page,
-        [Triples]>>rdf_html_triple_table(Page.uri, G, Triples, _{format: ntuples})
+        [Triples0]>>
+          rdf_html_triple_table(
+            Page.uri,
+            G,
+            Triples0,
+            options{format: ntuples}
+          )
       )
     ]
   ).
@@ -815,7 +821,7 @@ triple_count_method(Request, Method, MediaTypes) :-
   http_parameter_alternatives([p(P1),predicate(P2)], P),
   http_parameter_alternatives([s(S1),subject(S2)], S),
   hdt_graph_(Hdt, G),
-  hdt_triple_count(Hdt, S, P, O, Count),
+  hdt_tp_count(Hdt, tp(S,P,O), Count),
   rest_media_type(MediaTypes, triple_count_media_type(G, Count)).
 
 % /triple/count: GET,HEAD: application/json

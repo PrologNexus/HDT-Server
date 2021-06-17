@@ -161,7 +161,7 @@ term_id_method(Request, TermRole, Method, MediaTypes) :-
   http_parameter_conflict(prefix(Prefix), term(Term)),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  Options = _{
+  Options = options{
     graph: G,
     page_number: PageNumber,
     page_size: PageSize,
@@ -169,7 +169,7 @@ term_id_method(Request, TermRole, Method, MediaTypes) :-
   },
   hdt_graph_(Hdt, G),
   (   Random == true
-  ->  RandomOptions = Options.put(_{single_page: true}),
+  ->  RandomOptions = Options.put(options{single_page: true}),
       pagination(
         Id,
         (
@@ -304,36 +304,36 @@ triple_id_method(Request, Method, MediaTypes) :-
   rdf_http_query([s(S),p(P),o(O),g(G)], Query),
   memberchk(request_uri(RelUri), Request),
   http_absolute_uri(RelUri, Uri),
-  Options = _{
+  Options = options{
     page_number: PageNumber,
     page_size: PageSize,
     query: Query,
     uri: Uri
   },
   (   Random == true
-  ->  RandomOptions = Options.put(_{single_page: true}),
+  ->  RandomOptions = Options.put(options{single_page: true}),
       pagination(
-        IdTriple,
+        TpId,
         (
-          hdt_triple_random(Hdt, S, P, O),
-          hdt_triple_id(Hdt, rdf(S,P,O), IdTriple)
+          hdt_tp_random(Hdt, tp(S,P,O)),
+          hdt_tp_id(Hdt, tp(S,P,O), TpId)
         ),
         RandomOptions,
         Page
       )
   ;   Offset is (PageNumber - 1) * PageSize,
       findall(
-        IdTriple,
+        TpId,
         limit(PageSize, (
-          hdt_triple(Hdt, Offset, S, P, O),
-          hdt_triple_id(Hdt, rdf(S,P,O), IdTriple)
+          hdt_tp_offset(Hdt, Offset, tp(S,P,O)),
+          hdt_tp_id(Hdt, tp(S,P,O), TpId)
         )),
         Results
       ),
       length(Results, NumResults),
-      hdt_triple_count(Hdt, S, P, O, TotalNumResults),
+      hdt_tp_count(Hdt, tp(S,P,O), TotalNumResults),
       merge_dicts(
-        _{
+        options{
           number_of_results: NumResults,
           results: Results,
           single_page: false,
